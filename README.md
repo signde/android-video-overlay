@@ -16,8 +16,12 @@ Package ID: `com.signde.androidvideooverlay`
 
 - onn 4K Pro v2, Android TV 14
 - onn 4K Plus, Android TV 14
+- Google TV Streamer 4K (contributor-reported)
 
 ## Setup and use
+
+See the [installation guide](INSTALL_GUIDE.md) for ADB connection methods and help
+if the Accessibility toggle immediately switches off.
 
 1. Install the APK.
 2. In Android TV **Settings > Accessibility**, enable **Android VideoInfoOverlay**.
