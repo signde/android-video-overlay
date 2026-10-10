@@ -18,5 +18,6 @@ class ToggleActivity : Activity() {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
         finish()
+        overridePendingTransition(0, 0)
     }
 }

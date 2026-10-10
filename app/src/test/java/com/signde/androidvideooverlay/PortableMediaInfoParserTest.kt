@@ -133,4 +133,48 @@ class PortableMediaInfoParserTest {
         assertEquals("192 kbps", result.audioBitrate)
         assertEquals("AAC", result.audioMode)
     }
+
+    @Test
+    fun oldHevcHdrDoesNotLeakIntoActiveAvcSdrDecoder() {
+        val logs = """
+            10-10 10:00:00.000 1000 1001 D CCodec: allocate(c2.amlogic.hevc.decoder)
+            10-10 10:00:00.100 1000 1001 D CCodecConfig: coded.vui.color.transfer = 6
+            10-10 10:00:05.000 1000 1002 D CCodec: allocate(c2.amlogic.avc.decoder.secure)
+            10-10 10:00:05.100 1000 1002 D CCodecConfig: coded.vui.color.transfer = 3
+        """.trimIndent()
+        val result = PortableMediaInfoParser.parse(avcResources, pcmOutput, logs)
+        assertEquals("", result.videoHdr)
+        assertEquals("", result.hdrOutput)
+    }
+
+    @Test
+    fun unselectedUnsupportedTrackDoesNotTriggerDolbyVision() {
+        val logs = """
+            [X] Track:0, mimeType=video/avc, bitrate=5000000, res=1920x1080
+            [ ] Track:1, mimeType=video/dolby-vision, supported=NO
+        """.trimIndent()
+        val result = PortableMediaInfoParser.parse(avcResources, pcmOutput, logs)
+        assertEquals("", result.videoHdr)
+        assertEquals("", result.hdrOutput)
+    }
+
+    @Test
+    fun activeDecoderWithTransfer6ReportsHdr10() {
+        val logs = """
+            10-10 10:00:05.000 1000 1002 D CCodec: allocate(c2.amlogic.avc.decoder.secure)
+            10-10 10:00:05.100 1000 1002 D CCodecConfig: coded.vui.color.transfer = 6
+        """.trimIndent()
+        val result = PortableMediaInfoParser.parse(avcResources, pcmOutput, logs)
+        assertEquals("HDR10", result.videoHdr)
+    }
+
+    @Test
+    fun parsesHdmiColorAttributes() {
+        assertEquals("YCbCr420 10bit", HdmiColorSettingParser.parse("420,10bit"))
+        assertEquals("YCbCr422 12bit", HdmiColorSettingParser.parse("422,12bit"))
+        assertEquals("RGB 8bit", HdmiColorSettingParser.parse("rgb,8bit"))
+        assertEquals("YCbCr444 8bit", HdmiColorSettingParser.parse("444,8bit\n"))
+        assertEquals("", HdmiColorSettingParser.parse("Permission denied"))
+        assertEquals("", HdmiColorSettingParser.parse(""))
+    }
 }

@@ -11,18 +11,38 @@ data class PortableMediaInfo(
     val videoBitrate: String = "",
     val audioBitrate: String = "",
     val audioModeIsOutput: Boolean = false,
-    val hdrOutput: String = ""
+    val hdrOutput: String = "",
+    val videoHdr: String = "",
+    val colorSpace: String = ""
 )
 
-/** Amlogic's live HDMI transmitter status, not EDID capabilities or codec support. */
+/** Parses live HDMI attribute on Amlogic/supported devices (e.g. 420,10bit). */
+object HdmiColorSettingParser {
+    fun parse(status: String): String {
+        val trimmed = status.trim().lowercase()
+        if (trimmed.isEmpty() || trimmed.contains("no such") || trimmed.contains("denied")) return ""
+        val parts = trimmed.split(',')
+        val format = when (parts[0].trim()) {
+            "420" -> "YCbCr420"
+            "422" -> "YCbCr422"
+            "444" -> "YCbCr444"
+            "rgb" -> "RGB"
+            else -> return ""
+        }
+        val bit = if (parts.size > 1) parts[1].trim() else "8bit"
+        return "$format $bit"
+    }
+}
+
+/** Amlogic, MediaTek and live HDMI transmitter status, not EDID capabilities or codec support. */
 object HdrOutputParser {
     fun parse(status: String): String = when (status.trim()) {
-        "HDR10-GAMMA_ST2084" -> "HDR10"
-        "HDR10Plus-VSIF" -> "HDR10+"
-        "HDR10-GAMMA_HLG" -> "HLG"
-        "DolbyVision-Std" -> "Dolby Vision"
-        "DolbyVision-Lowlatency" -> "Dolby Vision (LL)"
-        "HDR10-others" -> "HDR (other)"
+        "HDR10-GAMMA_ST2084", "HDR10" -> "HDR10"
+        "HDR10Plus-VSIF", "HDR10Plus", "HDR10+" -> "HDR10+"
+        "HDR10-GAMMA_HLG", "HLG" -> "HLG"
+        "DolbyVision-Std", "DolbyVision", "DV" -> "Dolby Vision"
+        "DolbyVision-Lowlatency", "DolbyVision-LL", "DV-LL" -> "Dolby Vision (LL)"
+        "HDR10-others", "HDR" -> "HDR (other)"
         "SDR" -> "SDR"
         // Missing/denied/unknown status must never be mistaken for SDR.
         else -> ""
@@ -33,8 +53,10 @@ object PortableMediaInfoParser {
     fun parse(resourceManager: String, audioFlinger: String, logcat: String): PortableMediaInfo {
         // ResourceManager's event history is not a list of currently running codecs.
         val clients = resourceManager.substringBefore("Process Pid override:").substringBefore("Events logs:")
-        val videoClient = clients.split("Client:").firstOrNull { "video-codec" in it && "Name: c2." in it }
-        val decoder = Regex("""Name:\s+(c2\.\S+\.decoder\S*)""").find(videoClient.orEmpty())?.groupValues?.get(1).orEmpty()
+        val videoClient = clients.split("Client:").firstOrNull { 
+            "video-codec" in it && ("Name: c2." in it || "Name: OMX." in it) 
+        }
+        val decoder = Regex("""Name:\s+((?:c2|OMX)\.\S+)""").find(videoClient.orEmpty())?.groupValues?.get(1).orEmpty()
         val hasActiveVideoDecoder = decoder.isNotEmpty()
         val activeOutput = activeAudioOutput(audioFlinger)
         val videoTrack = singleSelectedTrack(logcat, "video")
@@ -56,6 +78,7 @@ object PortableMediaInfoParser {
             ?: Regex("""(?:frame_rate|fps)=([\d.]+)""").find(matchingTrack)?.groupValues?.get(1).orEmpty()
         val audioMime = audioEvent?.groupValues?.get(1)
             ?: Regex("""mimeType=([^, ]+)""").find(audioTrack)?.groupValues?.get(1).orEmpty()
+        val streamHdr = detectHdrFromLogcat(logcat, decoder, videoTrack)
         return PortableMediaInfo(
             videoFormat = if (hasActiveVideoDecoder) friendlyVideoFormat(decoder.substringBefore(".decoder").substringAfterLast('.')) else "",
             videoResolution = if (hasActiveVideoDecoder) resolution else "",
@@ -64,7 +87,9 @@ object PortableMediaInfoParser {
             audioFormat = activeOutput.second,
             videoBitrate = if (hasActiveVideoDecoder) formatBitrate(matchingEvent?.groupValues?.get(3) ?: bitrate(matchingTrack), true) else "",
             audioBitrate = if (activeOutput.first.isNotEmpty()) formatBitrate(audioEvent?.groupValues?.get(2) ?: bitrate(audioTrack), false) else "",
-            audioModeIsOutput = activeOutput.first.isNotEmpty() && audioMime.isEmpty()
+            audioModeIsOutput = activeOutput.first.isNotEmpty() && audioMime.isEmpty(),
+            videoHdr = streamHdr,
+            hdrOutput = ""
         )
     }
 
@@ -122,17 +147,61 @@ object PortableMediaInfoParser {
         return format to mode
     }
 
-    private fun friendlyVideoFormat(value: String): String = when {
-        "av01" in value || value.equals("av1", true) -> "AV1"
-        "hevc" in value || "h265" in value -> "H.265 / HEVC"
-        "avc" in value || "h264" in value -> "H.264 / AVC"
-        "vp9" in value -> "VP9"
-        "vp8" in value -> "VP8"
-        "mpeg2" in value -> "MPEG-2"
-        "mpeg4" in value -> "MPEG-4"
-        "vc1" in value -> "VC-1"
-        value.isNotEmpty() -> value.substringAfterLast('/')
-        else -> ""
+    private fun detectHdrFromLogcat(log: String, decoder: String, videoTrack: String): String {
+        // 1. Only inspect videoTrack if it's selected and supported
+        if (videoTrack.isNotEmpty() && !videoTrack.contains("supported=NO")) {
+            val lowerTrack = videoTrack.lowercase()
+            when {
+                "dolby-vision" in lowerTrack || "dvhe" in lowerTrack || "dvh1" in lowerTrack -> return "Dolby Vision"
+                "hdr10plus" in lowerTrack || "hdr10+" in lowerTrack -> return "HDR10+"
+                "color-transfer=6" in lowerTrack -> return "HDR10"
+                "color-transfer=7" in lowerTrack -> return "HLG"
+            }
+        }
+
+        // 2. Scope to current active decoder instance in logcat
+        if (decoder.isNotEmpty()) {
+            val lines = log.lines()
+            val start = lines.indexOfLast { "allocate($decoder)" in it }
+            val scanLines = if (start >= 0) lines.drop(start) else lines
+            val prefix = Regex("""^\S+\s+\S+\s+(\d+)\s+(\d+)\s""")
+            val thread = if (start >= 0) prefix.find(lines[start])?.groupValues?.get(2) else null
+
+            var activeTransfer: String? = null
+            for (line in scanLines) {
+                if (thread != null && prefix.find(line)?.groupValues?.get(2) != thread) {
+                    if (!line.contains("CCodecConfig") && !line.contains("CCodec")) continue
+                }
+                val transferMatch = Regex("""coded\.vui\.color\.transfer\s*=\s*(\d+)""").find(line)
+                    ?: Regex("""(?:color[.-])?transfer\s*[=:]\s*(\d+)""").find(line)
+                if (transferMatch != null) {
+                    activeTransfer = transferMatch.groupValues[1]
+                }
+            }
+            when (activeTransfer) {
+                "6" -> return "HDR10"
+                "7" -> return "HLG"
+                "1", "2", "3" -> return ""
+            }
+        }
+        return ""
+    }
+
+    private fun friendlyVideoFormat(value: String): String {
+        val lower = value.lowercase()
+        return when {
+            "av01" in lower || "av1" in lower -> "AV1"
+            "hevc" in lower || "h265" in lower -> "H.265 / HEVC"
+            "avc" in lower || "h264" in lower -> "H.264 / AVC"
+            "vp9" in lower -> "VP9"
+            "vp8" in lower -> "VP8"
+            "mpeg2" in lower || "mpeg-2" in lower -> "MPEG-2"
+            "mpeg4" in lower || "mpeg-4" in lower -> "MPEG-4"
+            "vc1" in lower || "vc-1" in lower -> "VC-1"
+            "dvhe" in lower || "dvh1" in lower || "dolby" in lower -> "Dolby Vision"
+            value.isNotEmpty() -> value.substringAfterLast('/')
+            else -> ""
+        }
     }
 
     private fun friendlyAudioFormat(value: String): String = when {
