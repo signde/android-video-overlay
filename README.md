@@ -1,6 +1,6 @@
 # Android VideoInfoOverlay
 
-Experimental video information overlay for onn devices running Android TV 14.
+Experimental video information overlay for Android TV devices.
 Compatibility with other devices is not guaranteed.
 
 Based on Jamal's original application and the almirus source mirror.
@@ -8,7 +8,7 @@ Original attribution and MIT license are retained.
 
 Package ID: `com.signde.androidvideooverlay`
 
-[Download the experimental APK](https://github.com/signde/android-video-overlay/releases/tag/v21.0)
+[Download the experimental APK](https://github.com/signde/android-video-overlay/releases/tag/v21.1)
 
 ![Android VideoInfoOverlay during Dolby surround sample playback](docs/images/overlay-dolby-sample.png)
 
