@@ -25,7 +25,7 @@ class PortableMediaInfoParserTest {
         """.trimIndent()
 
         assertEquals(
-            PortableMediaInfo("H.265 / HEVC", "1280 x 720", "", "Dolby Digital+", "Direct / offload"),
+            PortableMediaInfo("H.265 / HEVC", "1280 x 720", "", "Dolby Digital+", "Direct / offload", audioChannels = "6 channels"),
             PortableMediaInfoParser.parse(resources, audio, logs)
         )
     }
@@ -51,7 +51,7 @@ class PortableMediaInfoParserTest {
         """.trimIndent()
 
         assertEquals(
-            PortableMediaInfo("AV1", "3840 x 1612", "", "DTS-HD", "Decoded PCM"),
+            PortableMediaInfo("AV1", "3840 x 1612", "", "DTS-HD", "Decoded PCM", audioChannels = "8 channels"),
             PortableMediaInfoParser.parse(resources, audio, logs)
         )
     }
@@ -143,7 +143,7 @@ class PortableMediaInfoParserTest {
             10-10 10:00:05.100 1000 1002 D CCodecConfig: coded.vui.color.transfer = 3
         """.trimIndent()
         val result = PortableMediaInfoParser.parse(avcResources, pcmOutput, logs)
-        assertEquals("", result.videoHdr)
+        assertEquals("SDR", result.videoHdr)
         assertEquals("", result.hdrOutput)
     }
 

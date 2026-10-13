@@ -3,8 +3,6 @@ package com.signde.androidvideooverlay
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.provider.Settings
-import android.widget.Toast
 
 /** A launchable, remote-mapper-friendly toggle that immediately returns to playback. */
 class ToggleActivity : Activity() {
@@ -14,8 +12,8 @@ class ToggleActivity : Activity() {
         if (service != null) {
             service.toggleOverlay()
         } else {
-            Toast.makeText(this, getString(R.string.enable_accessibility_first, getString(R.string.app_name)), Toast.LENGTH_LONG).show()
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            startActivity(Intent(this, SetupActivity::class.java).addFlags(
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
         }
         finish()
         overridePendingTransition(0, 0)

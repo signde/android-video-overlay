@@ -2,9 +2,9 @@ package com.signde.androidvideooverlay.settings
 
 import android.content.Intent
 import android.os.Bundle
-import android.provider.Settings
 import com.signde.androidvideooverlay.MainActivity
 import com.signde.androidvideooverlay.ToggleActivity
+import com.signde.androidvideooverlay.SetupActivity
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
@@ -35,13 +35,23 @@ class SettingsActivity : AppCompatActivity() {
         private var hideOptionsPreference: Preference? = null
         private var aboutOptionsPreference: Preference? = null
 
+        private fun openSetup() {
+            startActivity(Intent(requireContext(), SetupActivity::class.java).addFlags(
+                Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        }
+
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.activity_settings, rootKey)
 
             findPreference<Preference>("toggle_overlay")?.setOnPreferenceClickListener {
                 val service = MainActivity.activeService
-                if (service == null) startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                if (service == null) openSetup()
                 else service.toggleOverlay()
+                true
+            }
+
+            findPreference<Preference>("setup_permissions")?.setOnPreferenceClickListener {
+                openSetup()
                 true
             }
 

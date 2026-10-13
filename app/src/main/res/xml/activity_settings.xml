@@ -3,6 +3,10 @@
     <PreferenceCategory android:title="@string/settings">
 
         <Preference
+            android:key="setup_permissions"
+            android:title="@string/setup_settings_title" />
+
+        <Preference
             android:key="toggle_overlay"
             android:title="Show / hide overlay"
             android:summary="Toggle visibility, then return to your player." />

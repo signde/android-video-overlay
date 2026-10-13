@@ -35,6 +35,8 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".SetupActivity" android:exported="false" />
+
         <activity android:name=".settings.SettingsActivity" android:exported="true"
             android:label="@string/app_settings_name" />
 

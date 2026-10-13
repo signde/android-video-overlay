@@ -5,6 +5,80 @@ Android VideoInfoOverlay es experimental. Los menús y las opciones de depuraci�
 
 ## English
 
+### Install and configure on the TV (no computer commands)
+
+Guided setup is included starting with **v21.2**. Download the
+[latest APK](https://github.com/signde/android-video-overlay/releases/latest/download/Android_VideoInfoOverlay.apk),
+or choose a version from [Releases](https://github.com/signde/android-video-overlay/releases).
+See the [README](README.md#verified-devices) for verified devices. Available
+metrics vary by device and app; support does not mean every field is available.
+
+**Downloader:** enter the following URL in its address field. It always points to
+the latest published APK, so a Downloader code made for this URL does not need to
+change for each release:
+
+```text
+https://github.com/signde/android-video-overlay/releases/latest/download/Android_VideoInfoOverlay.apk
+```
+
+1. **Install the APK.** Download it with Downloader, or transfer it to the TV and
+   open it with a file manager. If Android asks, allow that installer to install
+   unknown apps. You can turn that installer permission off again afterward.
+   To update an existing installation, install the new APK over it; do not
+   uninstall first. Existing settings and authorizations should be retained.
+2. **Enable debugging.** Open **Settings > System > About** and press **Android TV
+   OS build** seven times. In **Developer options**, enable **USB debugging**.
+   Menu names may vary. The app requires local ADB on **port 5555**; enabling or
+   pairing **Wireless debugging** alone is not sufficient.
+3. **Open Android VideoInfoOverlay.** On its setup screen, select **2. Authorize
+   local ADB and allow restricted settings**, read the explanation, then select
+   **Continue**. This authorizes the app to request its own restricted-settings
+   permission. It does not enable Accessibility or disable other services.
+4. **Approve the TV's debugging prompt.** Select **Always allow from this computer**
+   and **Allow** in **Allow USB debugging?** Here, the connection is from the app
+   on this TV, not another computer. Only approve it if you trust this APK: ADB
+   gives the app powerful shell access. Keep debugging enabled only on a trusted
+   network. Wait for **Restricted settings allowed and verified** in the app.
+5. **Enable Accessibility.** Select **3. Open Accessibility settings**, enable
+   **Android VideoInfoOverlay**, and accept Android's confirmation. Other
+   accessibility services can remain enabled. Press **Back** to return to setup.
+6. **Show the overlay.** Wait for **Accessibility service connected. Ready to show
+   the overlay**, then select **4. Show overlay and finish**. Opening the app from
+   the apps list subsequently shows or hides the overlay when the service is
+   connected; otherwise it opens setup. Remote-button behavior varies by device.
+   Use the apps-list shortcut if Favorites / Bookmark is not assigned.
+
+To revisit setup, open **Settings > Accessibility > Android VideoInfoOverlay >
+Configuration > Setup / permissions**.
+The **Overlay configuration** button at the bottom of setup opens the appearance
+and remote-button settings, even before Accessibility is enabled.
+
+**If setup fails:**
+
+- If the app opens without the guided setup and Accessibility is not enabled,
+  check that you installed v21.2 or newer. v21.1 does not include guided setup.
+- If no debugging prompt appears, or setup times out, check **USB debugging** and
+  retry the authorization step. Already-authorized installations may not show
+  another prompt. Some devices do not expose local port 5555; report the exact
+  error rather than assuming Wireless debugging pairing will fix it.
+- If Accessibility switches itself off, return to setup and verify that the
+  restricted-settings step succeeded. After deliberately force-stopping the app,
+  you may need to enable Accessibility again.
+- If Play Protect warns about the APK, review the warning and proceed only if
+  you trust this APK. Do not disable Play Protect globally.
+- Report the device model, Android build, failing step, and exact message.
+  Successful setup does not guarantee that every playback metric is available.
+
+The app uses an accessibility overlay. It does not need a separate **Display over
+other apps** permission, root, or any other helper.
+
+### Computer-assisted fallback
+
+The remaining English instructions are for computer-assisted troubleshooting or
+older APKs. **Skip them if guided setup succeeded.** A computer connection
+can grant restricted-settings access, but does not remove the overlay's requirement
+for local ADB on port 5555.
+
 ### Before you begin
 
 Download the APK from [Releases](https://github.com/signde/android-video-overlay/releases).
@@ -94,7 +168,7 @@ Do not share pairing codes. A listed device is not necessarily authorized.
 Skip this if the APK is already installed. Adjust the filename for the release downloaded:
 
 ```sh
-adb -s DEVICE_ID install -r Android_VideoInfoOverlay_21.1-debug.apk
+adb -s DEVICE_ID install -r Android_VideoInfoOverlay.apk
 ```
 
 Then enable Accessibility as described in step 4. If the toggle immediately
@@ -142,6 +216,75 @@ References: [ADB connection and authorization](https://developer.android.com/too
 [Android restricted settings](https://support.google.com/android/answer/12623953?hl=en).
 
 ## Español
+
+### Instalar y configurar desde el TV (sin comandos de ordenador)
+
+La configuración guiada está incluida desde **v21.2**. Descarga el
+[APK más reciente](https://github.com/signde/android-video-overlay/releases/latest/download/Android_VideoInfoOverlay.apk)
+o elige una versión en [Releases](https://github.com/signde/android-video-overlay/releases).
+Consulta los dispositivos verificados en el [README](README.md#verified-devices).
+Las métricas disponibles dependen del dispositivo y la aplicación; no se garantiza
+que aparezcan todos los campos. Los botones de configuración aparecen en inglés.
+
+**Downloader:** introduce esta URL en el campo de dirección. Siempre apunta al APK
+publicado más reciente; un código de Downloader creado para ella no necesita
+cambiar con cada versión:
+
+```text
+https://github.com/signde/android-video-overlay/releases/latest/download/Android_VideoInfoOverlay.apk
+```
+
+1. **Instala el APK** con Downloader o un gestor de archivos en el TV. Si Android
+   lo solicita, permite que ese instalador instale aplicaciones desconocidas.
+   Puedes desactivar ese permiso después. Para actualizar, instala el nuevo APK
+   sobre el existente, sin desinstalar primero; los ajustes y las autorizaciones
+   deberían conservarse.
+2. **Activa la depuración.** En **Ajustes > Sistema > Información**, pulsa siete
+   veces **Compilación del SO de Android TV**. En las opciones para desarrolladores,
+   activa **Depuración por USB**. La aplicación necesita ADB local en el **puerto
+   5555**; activar o emparejar Depuración inalámbrica no basta.
+3. **Abre Android VideoInfoOverlay** y selecciona **2. Authorize local ADB and
+   allow restricted settings**. Lee la explicación y pulsa **Continue**. La app
+   solicitará su propio permiso de ajustes restringidos; no activará Accesibilidad
+   ni desactivará otros servicios.
+4. En **¿Permitir depuración por USB?**, marca **Permitir siempre desde este
+   ordenador** y acepta. La conexión procede de la propia aplicación en este TV,
+   no de otro ordenador. Autorízala solo si confías en el APK: ADB proporciona
+   acceso potente al sistema. Mantén la depuración activada solo en una red de
+   confianza. Espera el mensaje **Restricted settings allowed and verified**.
+5. Selecciona **3. Open Accessibility settings**, activa **Android VideoInfoOverlay**
+   y acepta la confirmación. Los demás servicios pueden permanecer activados.
+   Pulsa **Atrás** para volver a la configuración de la aplicación.
+6. Espera **Accessibility service connected. Ready to show the overlay** y pulsa
+   **4. Show overlay and finish**. Después, abrir la aplicación desde la lista de
+   apps muestra u oculta el overlay si el servicio está conectado; de lo contrario,
+   abre la configuración inicial. Usa este acceso si Favoritos / Bookmark no está
+   asignado; el comportamiento del botón del mando depende del dispositivo.
+
+Para repetir la configuración, abre **Ajustes > Accesibilidad > Android
+VideoInfoOverlay > Configuración > Setup / permissions**.
+El botón **Overlay configuration**, al final de la pantalla de configuración
+inicial, abre los ajustes de apariencia y del mando, incluso sin Accesibilidad activada.
+
+**Si falla:** comprueba que instalaste v21.2 o posterior y que Depuración por USB
+está activada. Reintenta la autorización si no aparece el aviso o se agota el
+tiempo; una instalación ya autorizada puede no mostrar otro aviso. Algunos
+dispositivos no ofrecen ADB local en el puerto 5555. Si Accesibilidad se desactiva,
+comprueba que la verificación de ajustes restringidos haya terminado correctamente.
+Tras forzar la detención puede ser necesario volver a activar Accesibilidad.
+Si Play Protect muestra una advertencia, revísala y continúa solo si confías en el
+APK; no desactives Play Protect globalmente. Comunica el modelo, la compilación
+de Android, el paso y el mensaje exacto del error.
+
+La configuración correcta no garantiza todas las métricas de reproducción. No se
+necesita el permiso **Mostrar sobre otras aplicaciones**, root ni otra aplicación
+auxiliar: se utiliza un overlay de accesibilidad.
+
+### Alternativa con ordenador
+
+Las instrucciones restantes corresponden a versiones anteriores o a la resolución
+de problemas con ordenador. **Omítelas si la configuración guiada funcionó.** La autorización
+desde un ordenador no elimina el requisito de ADB local en el puerto 5555.
 
 ### Antes de empezar
 
@@ -234,7 +377,7 @@ no significa estar autorizado.
 Omite este paso si ya está instalado. Ajusta el nombre al APK descargado:
 
 ```sh
-adb -s DEVICE_ID install -r Android_VideoInfoOverlay_21.1-debug.apk
+adb -s DEVICE_ID install -r Android_VideoInfoOverlay.apk
 ```
 
 Activa Accesibilidad según el paso 4. Si el interruptor se apaga inmediatamente,

@@ -21,7 +21,6 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
-import android.util.Base64
 import android.util.Log
 import android.view.Display
 import android.view.KeyEvent
@@ -34,9 +33,7 @@ import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.ColorUtils
 import androidx.preference.PreferenceManager
-import com.tananaev.adblib.AdbBase64
 import com.tananaev.adblib.AdbConnection
-import com.tananaev.adblib.AdbCrypto
 import com.tananaev.adblib.AdbStream
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -87,8 +84,6 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
     private val ipAddress = "0.0.0.0"
     private var requestKey= "request_key"
     private var celFahrKey= "celsius_fahrenheit_key"
-    private val publicKeyName: String = "public.key"
-    private val privateKeyName: String = "private.key"
     private val selectedCodeKey = "selected_code_key"
     private val longPressKey = "long_press_key"
     private val hideLeftOverlay = "hide_left_overlay_key"
@@ -452,6 +447,7 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
                     .ifEmpty { detectedMediaInfo.colorSpace }
                 val hdrStatus = getSystemProperty("sys.nes.info.hdr_status")
                     .ifEmpty { detectedMediaInfo.hdrOutput }
+                    .ifEmpty { "Unavailable" }
                 val hdrPolicy = getSystemProperty("sys.nes.info.hdr_policy")
                     .ifEmpty { getHdrPolicyFallback() }
                 val hdrPriority = getSystemProperty("sys.nes.info.hdr_priority")
@@ -648,6 +644,7 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
                         }
                     }
                     if (!isHideVideoFormat) appendLine(detectedMediaInfo.videoBitrate.ifEmpty { "Unavailable" })
+                    if (!isHideHdrStatus) appendLine(detectedMediaInfo.videoHdr.ifEmpty { "Unavailable" })
 
                     if (!isHideEmptyVideoAudioLine && !isEmptyLine) {
                         appendLine()
@@ -694,6 +691,7 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
                         }
                     }
                     if (!isHideAudioFormat) appendLine(detectedMediaInfo.audioBitrate.ifEmpty { "Unavailable" })
+                    if (!isHideAudioFormat) appendLine(detectedMediaInfo.audioChannels.ifEmpty { "Unavailable" })
 
                     if (!isHideEmptyAudioDisplayLine && !isEmptyLine) {
                         appendLine()
@@ -913,7 +911,8 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
 
                     if (!isHideVideoResolution) {
                         if (videoResolution.isNotEmpty()) {
-                            appendLine(getString(R.string.video_resolution))
+                            appendLine(if (detectedMediaInfo.videoResolutionFromBuffer &&
+                                videoResolution == detectedMediaInfo.videoResolution) "Video Buffer:" else getString(R.string.video_resolution))
                         }
                     }
 
@@ -923,6 +922,7 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
                         }
                     }
                     if (!isHideVideoFormat) appendLine("Video Bitrate:")
+                    if (!isHideHdrStatus) appendLine("Stream HDR:")
 
                     if (!isHideEmptyVideoAudioLine && !isEmptyLine) {
                         appendLine()
@@ -946,6 +946,7 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
                         }
                     }
                     if (!isHideAudioFormat) appendLine("Audio Bitrate:")
+                    if (!isHideAudioFormat) appendLine("Audio Channels:")
 
                     if (!isHideEmptyAudioDisplayLine && !isEmptyLine) {
                         appendLine()
@@ -1280,7 +1281,18 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
                         break
                     }
                 }
-                val colorSpaceOutput = HdmiColorSettingParser.parse(rawAttr)
+                // SOC_MANUFACTURER was added in Android 12; keep Android 11's
+                // existing detection path without invoking the Realtek fallbacks.
+                val socManufacturer = if (android.os.Build.VERSION.SDK_INT >= 31)
+                    android.os.Build.SOC_MANUFACTURER else ""
+                val colorSpaceOutput = HdmiColorSettingParser.parse(rawAttr).ifEmpty {
+                    if (socManufacturer.equals("Realtek", ignoreCase = true)) {
+                        // Keep only current vendor output format. FW_AUTO is a policy,
+                        // not evidence of live HDMI HDR, and must not populate hdrOutput.
+                        HdmiColorSettingParser.parseRealtekCurrentFormat(readAdbCommand(activeConnection,
+                            "dumpsys SurfaceFlinger | grep -F '[RTKDRM] crnt-fmt:'"))
+                    } else ""
+                }
 
                 val resources = readAdbCommand(activeConnection, "dumpsys media.resource_manager")
                     .substringBefore("Process Pid override:").substringBefore("Events logs:")
@@ -1289,15 +1301,15 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
                     .firstOrNull { "video-codec" in it && ("Name: c2." in it || "Name: OMX." in it) }
                     ?.lineSequence()?.firstOrNull()?.trim()?.toIntOrNull()
 
+                var currentPlayerPackage: String? = null
                 if (playerPid != null) {
                     val playerCmd = readAdbCommand(activeConnection, "cat /proc/$playerPid/cmdline 2>/dev/null")
                         .trim().trim('\u0000').substringBefore('\u0000').trim()
                     if (playerCmd.isNotEmpty() && !isSystemComponent(playerCmd) && !isLauncherPackage(playerCmd)) {
-                        activePlayerPackage = playerCmd
+                        currentPlayerPackage = playerCmd.substringBefore(':')
                     }
-                } else {
-                    activePlayerPackage = null
                 }
+                activePlayerPackage = currentPlayerPackage
 
                 val logs = playerPid?.let { pid ->
                     // Collect only media tags, never account/URL/authorization logs.
@@ -1305,7 +1317,16 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
                 }.orEmpty()
 
                 val parsed = PortableMediaInfoParser.parse(resources, audio, logs)
-                parsed.copy(hdrOutput = hdrOutput, colorSpace = colorSpaceOutput).also {
+                val withBuffer = VideoBufferFallback.apply(parsed, socManufacturer,
+                    resources, currentPlayerPackage) {
+                    val dump = readAdbCommand(activeConnection, "dumpsys SurfaceFlinger")
+                    // Avoid associating a surface with a decoder that stopped or
+                    // switched apps while the compositor snapshot was collected.
+                    val currentResources = readAdbCommand(activeConnection, "dumpsys media.resource_manager")
+                        .substringBefore("Process Pid override:").substringBefore("Events logs:")
+                    if (currentResources == resources) dump else ""
+                }
+                withBuffer.copy(hdrOutput = hdrOutput, colorSpace = colorSpaceOutput).also {
                     portableMediaInfo = it
                     portableMediaInfoUpdatedAt = System.currentTimeMillis()
                 }
@@ -1864,7 +1885,7 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
 
     suspend fun adbCommander(ip: String?) {
         val targetIp = ip ?: "127.0.0.1"
-        val crypto = readCryptoConfig(filesDir) ?: writeNewCryptoConfig(filesDir)
+        val crypto = runCatching { LocalAdbKey.loadOrCreate(filesDir) }.getOrNull()
 
         if (crypto == null) {
             Log.d("TAG", "Failed to generate/load RSA key pair")
@@ -2005,38 +2026,6 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
         return "$hardwarePropertiesFahrenheit°F"
     }
 
-    private fun readCryptoConfig(dataDir: File?): AdbCrypto? {
-        val pubKey = File(dataDir, publicKeyName)
-        val privKey = File(dataDir, privateKeyName)
-
-        var crypto: AdbCrypto? = null
-        if (pubKey.exists() && privKey.exists()) {
-            crypto = try {
-                AdbCrypto.loadAdbKeyPair(AndroidBase64(), privKey, pubKey)
-            } catch (e: Exception) {
-                null
-            }
-        }
-
-        return crypto
-    }
-
-    private fun writeNewCryptoConfig(dataDir: File?): AdbCrypto? {
-        val pubKey = File(dataDir, publicKeyName)
-        val privKey = File(dataDir, privateKeyName)
-
-        var crypto: AdbCrypto?
-
-        try {
-            crypto = AdbCrypto.generateAdbKeyPair(AndroidBase64())
-            crypto.saveAdbKeyPair(privKey, pubKey)
-        } catch (e: Exception) {
-            crypto = null
-        }
-
-        return crypto
-    }
-
     class MyAsyncTask internal constructor(context: MainActivity) {
         private val activityReference: WeakReference<MainActivity> = WeakReference(context)
         private var job: Job? = null
@@ -2070,9 +2059,4 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
         }
     }
 
-    class AndroidBase64 : AdbBase64 {
-        override fun encodeToString(bArr: ByteArray): String {
-            return Base64.encodeToString(bArr, Base64.NO_WRAP)
-        }
-    }
 }

@@ -13,11 +13,23 @@ data class PortableMediaInfo(
     val audioModeIsOutput: Boolean = false,
     val hdrOutput: String = "",
     val videoHdr: String = "",
-    val colorSpace: String = ""
+    val colorSpace: String = "",
+    val audioChannels: String = "",
+    val videoResolutionFromBuffer: Boolean = false
 )
 
 /** Parses live HDMI attribute on Amlogic/supported devices (e.g. 420,10bit). */
 object HdmiColorSettingParser {
+    /** Realtek's current format, not its EDID support list or proposed format. */
+    fun parseRealtekCurrentFormat(dump: String): String {
+        val current = dump.lineSequence().filter { it.trimStart().startsWith("[RTKDRM] crnt-fmt:") }.toList()
+        if (current.size != 1) return ""
+        val match = Regex(""",\s*(YUV420|YUV422|YUV444|RGB)/(8|10|12|16),""")
+            .find(current.single()) ?: return ""
+        val color = match.groupValues[1].replace("YUV", "YCbCr")
+        return "$color ${match.groupValues[2]}bit"
+    }
+
     fun parse(status: String): String {
         val trimmed = status.trim().lowercase()
         if (trimmed.isEmpty() || trimmed.contains("no such") || trimmed.contains("denied")) return ""
@@ -58,9 +70,15 @@ object PortableMediaInfoParser {
         }
         val decoder = Regex("""Name:\s+((?:c2|OMX)\.\S+)""").find(videoClient.orEmpty())?.groupValues?.get(1).orEmpty()
         val hasActiveVideoDecoder = decoder.isNotEmpty()
+        val audioClient = clients.split("Client:").filter {
+            "audio-codec" in it && ("Name: c2." in it || "Name: OMX." in it)
+        }.singleOrNull()
+        val audioDecoder = Regex("""Name:\s+((?:c2|OMX)\.\S+)""")
+            .find(audioClient.orEmpty())?.groupValues?.get(1).orEmpty()
         val activeOutput = activeAudioOutput(audioFlinger)
         val videoTrack = singleSelectedTrack(logcat, "video")
         val audioTrack = singleSelectedTrack(logcat, "audio")
+        val audioSource = latestAudioSource(logcat, audioTrack)
         // ESPN emits the actual adaptive selection here. [X] in a track list can
         // mark every member of an adaptive group, not just the playing rendition.
         val videoEvent = Regex("""onVideoInputFormatChanged Video Track: (\d+)x(\d+) bitrate:(-?\d+) frameRate:([\d.]+)""")
@@ -76,11 +94,11 @@ object PortableMediaInfoParser {
         val matchingTrack = videoTrack.takeIf { trackResolution == resolution }.orEmpty()
         val frameRate = matchingEvent?.groupValues?.get(4)
             ?: Regex("""(?:frame_rate|fps)=([\d.]+)""").find(matchingTrack)?.groupValues?.get(1).orEmpty()
-        val audioMime = audioEvent?.groupValues?.get(1)
-            ?: Regex("""mimeType=([^, ]+)""").find(audioTrack)?.groupValues?.get(1).orEmpty()
-        val streamHdr = detectHdrFromLogcat(logcat, decoder, videoTrack)
+        val audioMime = Regex("""(?:mimeType=|Audio Track: )(audio/[^,\s]+)""")
+            .find(audioSource)?.groupValues?.get(1).orEmpty()
+        val streamHdr = if (hasActiveVideoDecoder) detectHdrFromLogcat(logcat, decoder, matchingTrack) else ""
         return PortableMediaInfo(
-            videoFormat = if (hasActiveVideoDecoder) friendlyVideoFormat(decoder.substringBefore(".decoder").substringAfterLast('.')) else "",
+            videoFormat = if (hasActiveVideoDecoder) friendlyVideoFormat(decoder) else "",
             videoResolution = if (hasActiveVideoDecoder) resolution else "",
             frameRate = if (hasActiveVideoDecoder && frameRate.toDoubleOrNull()?.let { it > 0 } == true) "${frameRate}fps" else "",
             audioMode = if (activeOutput.first.isEmpty()) "" else friendlyAudioFormat(audioMime.ifEmpty { activeOutput.first }),
@@ -89,8 +107,80 @@ object PortableMediaInfoParser {
             audioBitrate = if (activeOutput.first.isNotEmpty()) formatBitrate(audioEvent?.groupValues?.get(2) ?: bitrate(audioTrack), false) else "",
             audioModeIsOutput = activeOutput.first.isNotEmpty() && audioMime.isEmpty(),
             videoHdr = streamHdr,
-            hdrOutput = ""
+            hdrOutput = "",
+            audioChannels = if (activeOutput.first.isNotEmpty()) sourceAudioChannels(audioSource)
+                .ifEmpty { espnSelectedTrackChannels(logcat, audioTrack, audioSource) }
+                .ifEmpty { codecInputChannels(logcat, audioDecoder, audioMime) } else ""
         )
+    }
+
+    private fun codecInputChannels(log: String, decoder: String, sourceMime: String): String {
+        if (decoder.isEmpty()) return ""
+        val lines = log.lines()
+        val start = lines.indexOfLast { "allocate($decoder)" in it }
+        if (start < 0) return ""
+        val prefix = Regex("""^\S+\s+\S+\s+\d+\s+(\d+)\s""")
+        val thread = prefix.find(lines[start])?.groupValues?.get(1) ?: return ""
+        val tail = lines.drop(start + 1)
+        // Initial configure data cannot describe later format changes in the
+        // same decoder. Prefer Unavailable if there has been another change.
+        if (tail.count { "onAudioInputFormatChanged Audio Track:" in it || "audioInputFormat [" in it } > 1) return ""
+        val own = tail.filter { prefix.find(it)?.groupValues?.get(1) == thread }
+            .takeWhile { "allocate(" !in it }
+        val input = own.indexOfLast { "setup formats input:" in it }
+        if (input < 0) return ""
+        val block = own.drop(input + 1).takeWhile { !it.trimEnd().endsWith("}") && "setup formats output:" !in it }
+            .joinToString("\n")
+        val mime = Regex("""string mime = "(audio/[^\"]+)"""").find(block)?.groupValues?.get(1) ?: return ""
+        if (mime == "audio/raw" || (sourceMime.isNotEmpty() && mime != sourceMime)) return ""
+        val count = Regex("""\bint32_t channel-count = (\d+)\b""").find(block)?.groupValues?.get(1) ?: return ""
+        return sourceAudioChannels("channels=$count")
+    }
+
+    private fun latestAudioSource(log: String, selectedTrack: String): String {
+        // A later input-format change supersedes a track listing. Never substitute
+        // the HDMI/HAL channel mask or decoded PCM output for source channels.
+        val event = log.lineSequence().lastOrNull {
+            "onAudioInputFormatChanged Audio Track:" in it || ("audioInputFormat [" in it && "mimeType=audio/" in it)
+        }
+        return if (event != null && log.lastIndexOf(event) >
+            (if (selectedTrack.isEmpty()) -1 else log.lastIndexOf(selectedTrack))) event else selectedTrack
+    }
+
+    private fun sourceAudioChannels(source: String): String {
+        if ("supported=NO" in source) return ""
+        val count = Regex("""\b(?:channels|channelCount|channel-count)\s*[=:]\s*(\d+)\b""")
+            .find(source)?.groupValues?.get(1)?.toIntOrNull()?.takeIf { it in 1..32 } ?: return ""
+        return if (count == 1) "1 channel" else "$count channels"
+    }
+
+    private fun espnSelectedTrackChannels(log: String, track: String, event: String): String {
+        // ESPN's first input-format notification omits channels. Fill only that
+        // missing field from an unambiguous matching selection in the same log.
+        // A second format change requires a fresh selection; do not cache tracks.
+        if (track.isEmpty() || "supported=true" !in track ||
+            "onAudioInputFormatChanged Audio Track:" !in event ||
+            Regex("""\b(?:channels|channelCount|channel-count)\s*[=:]""").containsMatchIn(event)) return ""
+        val trackIndex = log.lastIndexOf(track)
+        val eventIndex = log.lastIndexOf(event)
+        if (eventIndex <= trackIndex) return ""
+        val interval = log.substring(trackIndex, eventIndex + event.length)
+        if (interval.lineSequence().count {
+                "onAudioInputFormatChanged Audio Track:" in it || "audioInputFormat [" in it
+            } != 1) return ""
+        fun mime(line: String) = Regex("""(?:mimeType=|Audio Track: )(audio/[^,\s]+)""")
+            .find(line)?.groupValues?.get(1).orEmpty()
+        fun language(line: String) = Regex("""\blanguage[=:]([^,\s]+)""")
+            .find(line)?.groupValues?.get(1).orEmpty()
+        if (mime(event).isEmpty() || mime(event) != mime(track) ||
+            language(event).isEmpty() || language(event) != language(track)) return ""
+        // Same-codec alternatives may have different channel counts. MIME alone
+        // cannot identify which rendition was selected in a later notification.
+        val tracks = log.substring(0, eventIndex).lineSequence()
+            .filter { "Track:" in it && "mimeType=audio/" in it }.toList()
+        val group = tracks.drop(tracks.indexOfLast { "Track:0," in it }.coerceAtLeast(0))
+        if (group.count { mime(it) == mime(event) && language(it) == language(event) } != 1) return ""
+        return sourceAudioChannels(track)
     }
 
     private fun singleSelectedTrack(log: String, type: String): String {
@@ -148,8 +238,34 @@ object PortableMediaInfoParser {
     }
 
     private fun detectHdrFromLogcat(log: String, decoder: String, videoTrack: String): String {
-        // 1. Only inspect videoTrack if it's selected and supported
-        if (videoTrack.isNotEmpty() && !videoTrack.contains("supported=NO")) {
+        // Prefer current-decoder metadata. Do not scan unrelated codec threads
+        // or old log history when the active allocation has rolled out of logcat.
+        val lines = log.lines()
+        val start = lines.indexOfLast { "allocate($decoder)" in it }
+        val prefix = Regex("""^\S+\s+\S+\s+(\d+)\s+(\d+)\s""")
+        val thread = if (start >= 0) prefix.find(lines[start])?.groupValues?.get(2) else null
+        if (thread != null) {
+            var transfer: String? = null
+            for (line in lines.drop(start + 1)) {
+                if (prefix.find(line)?.groupValues?.get(2) != thread) continue
+                if ("allocate(" in line) break
+                if ("CCodecConfig" !in line) continue
+                Regex("""\bcoded\.vui\.color\.transfer\s*=\s*(\d+)\b""")
+                    .find(line)?.let { transfer = it.groupValues[1] }
+            }
+            when (transfer) {
+                "6" -> return "HDR10"
+                "7" -> return "HLG"
+                "1", "2", "3" -> return "SDR"
+            }
+        }
+        // A selected track is a fallback only if not superseded by a newer
+        // allocation or rendition change. Main 10 / bit depth alone is not HDR.
+        val trackAt = if (videoTrack.isEmpty()) -1 else log.lastIndexOf(videoTrack)
+        val allocationAt = log.lastIndexOf("allocate($decoder)")
+        val formatAt = log.lastIndexOf("onVideoInputFormatChanged Video Track:")
+        if (trackAt >= 0 && trackAt > allocationAt && trackAt > formatAt &&
+            !videoTrack.contains("supported=NO")) {
             val lowerTrack = videoTrack.lowercase()
             when {
                 "dolby-vision" in lowerTrack || "dvhe" in lowerTrack || "dvh1" in lowerTrack -> return "Dolby Vision"
@@ -159,31 +275,6 @@ object PortableMediaInfoParser {
             }
         }
 
-        // 2. Scope to current active decoder instance in logcat
-        if (decoder.isNotEmpty()) {
-            val lines = log.lines()
-            val start = lines.indexOfLast { "allocate($decoder)" in it }
-            val scanLines = if (start >= 0) lines.drop(start) else lines
-            val prefix = Regex("""^\S+\s+\S+\s+(\d+)\s+(\d+)\s""")
-            val thread = if (start >= 0) prefix.find(lines[start])?.groupValues?.get(2) else null
-
-            var activeTransfer: String? = null
-            for (line in scanLines) {
-                if (thread != null && prefix.find(line)?.groupValues?.get(2) != thread) {
-                    if (!line.contains("CCodecConfig") && !line.contains("CCodec")) continue
-                }
-                val transferMatch = Regex("""coded\.vui\.color\.transfer\s*=\s*(\d+)""").find(line)
-                    ?: Regex("""(?:color[.-])?transfer\s*[=:]\s*(\d+)""").find(line)
-                if (transferMatch != null) {
-                    activeTransfer = transferMatch.groupValues[1]
-                }
-            }
-            when (activeTransfer) {
-                "6" -> return "HDR10"
-                "7" -> return "HLG"
-                "1", "2", "3" -> return ""
-            }
-        }
         return ""
     }
 
@@ -209,7 +300,7 @@ object PortableMediaInfoParser {
         "eac3" in value.lowercase() || "e_ac3" in value.lowercase() -> "Dolby Digital+"
         "ac3" in value.lowercase() -> "Dolby Digital"
         "ac4" in value.lowercase() -> "Dolby AC-4"
-        "truehd" in value.lowercase() -> "Dolby TrueHD"
+        "truehd" in value.lowercase() || "true-hd" in value.lowercase() -> "Dolby TrueHD"
         "dts.hd" in value.lowercase() || "dts_hd" in value.lowercase() || "dtshd" in value.lowercase() -> "DTS-HD"
         "dts" in value.lowercase() -> "DTS"
         "aac" in value.lowercase() || "mp4a-latm" in value.lowercase() -> "AAC"
