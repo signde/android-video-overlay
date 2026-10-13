@@ -1,4 +1,4 @@
-# Android VideoInfoOverlay
+# Android Video Info Overlay
 
 Experimental video information overlay for Android TV devices.
 Compatibility with other devices is not guaranteed.
@@ -16,7 +16,7 @@ Package ID: `com.signde.androidvideooverlay`
 Enter the code in Downloader to download the latest APK. The code and short URL
 point to the direct APK link above and stay the same for future releases.
 
-![Android VideoInfoOverlay during Dolby surround sample playback](docs/images/overlay-dolby-sample.png)
+![Android Video Info Overlay during Dolby surround sample playback](docs/images/overlay-dolby-sample.png)
 
 ## Verified devices
 
@@ -36,16 +36,38 @@ See the [installation guide](INSTALL_GUIDE.md) for guided setup, Downloader
 installation, and help if the Accessibility toggle immediately switches off.
 
 1. Install the APK and enable **Developer options > USB debugging** on the TV.
-2. Open **Android VideoInfoOverlay** and follow its guided setup to authorize
-   local ADB and allow restricted settings. Approve the TV's debugging prompt
+2. Open **Android Video Info Overlay** and follow its guided setup to authorize
+   local ADB and allow restricted settings where required. Approve the TV's debugging prompt
    only if you trust this app. No computer commands are needed on supported devices.
-3. Use the setup screen to enable **Android VideoInfoOverlay** in Accessibility,
+3. Use the setup screen to enable **Android Video Info Overlay** in Accessibility,
    return with Back, and select **Show overlay and finish**. Leave debugging enabled
    on a trusted network. The app needs local ADB on port 5555; no root or any other
    helper is needed. Wireless debugging pairing alone is not sufficient.
 4. Press the remote's **Favorites / Bookmark** button to show or hide the overlay.
-   You can also open **Android VideoInfoOverlay** from the apps list to toggle it.
+   You can also open **Android Video Info Overlay** from the apps list to toggle it.
 
 For appearance and remote-button settings, open **Settings > Accessibility >
-Android VideoInfoOverlay > Configuration**, or **Overlay configuration** at the
+Android Video Info Overlay > Configuration**, or **Overlay configuration** at the
 bottom of the setup screen. Revisit setup through **Configuration > Setup / permissions**.
+
+## Changelog
+
+### 21.2.1
+
+- Fix Android 11/12 setup requesting an unsupported permission.
+- Prevent crashes when CPU frequency readings are unavailable.
+- Use “Android Video Info Overlay” consistently in the app and documentation.
+
+### 21.2
+
+- Add guided, on-device ADB setup and a new app icon.
+- Improve Realtek video detection, stream HDR, and audio channel reporting.
+- Add a permanent latest-APK link and Downloader code.
+
+### 21.1
+
+- Add Google TV Streamer support and improve device-specific metric fallbacks.
+
+### 21.0
+
+- Initial experimental release for onn devices, with configurable remote toggling.

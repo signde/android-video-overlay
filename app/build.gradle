@@ -11,8 +11,8 @@ android {
         applicationId 'com.signde.androidvideooverlay'
         minSdk 30
         targetSdk 34
-        versionCode 212
-        versionName '21.2'
+        versionCode 213
+        versionName '21.2.1'
         resConfigs 'bg', 'en', 'de', 'hu', 'ru', 'uk'
         setProperty('archivesBaseName', 'Android_VideoInfoOverlay_' + versionName)
     }

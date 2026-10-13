@@ -22,7 +22,8 @@ tag or duplicate release is necessary.
 ## Release checklist
 
 1. Increment `versionCode` and `versionName` in `app/build.gradle`. Update the
-   README and both languages of the installation guide if setup changes.
+   changelog at the bottom of the README, and both languages of the installation
+   guide if setup changes. Mark the changelog version as released when publishing.
 2. Run `testDebugUnitTest assembleDebug` with JDK 17 and the Android SDK. Review
    lint separately and smoke-test the resulting APK on a supported device.
 3. Preserve the existing signing identity for in-place updates. Published builds

@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -19,6 +20,7 @@ import java.util.concurrent.Executors
 
 /** TV-remote-friendly setup that works before the accessibility service can start. */
 class SetupActivity : Activity() {
+    private val needsRestrictedSettings = SetupPermissionResult.requiresRestrictedSettings(Build.VERSION.SDK_INT)
     private val handler = Handler(Looper.getMainLooper())
     private val executor = Executors.newSingleThreadExecutor()
     private var client: SetupAdbClient? = null
@@ -63,10 +65,10 @@ class SetupActivity : Activity() {
         label(R.string.setup_title, 25f)
         label(R.string.setup_intro)
         button(R.string.setup_developer_button) { openSettings(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS) }
-        authorize = button(R.string.setup_authorize_button) {
+        authorize = button(if (needsRestrictedSettings) R.string.setup_authorize_button else R.string.setup_authorize_legacy_button) {
             AlertDialog.Builder(this)
                 .setTitle(R.string.setup_consent_title)
-                .setMessage(R.string.setup_consent_message)
+                .setMessage(if (needsRestrictedSettings) R.string.setup_consent_message else R.string.setup_consent_legacy_message)
                 .setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(R.string.setup_consent_allow) { _, _ -> beginAuthorization() }
                 .show()
@@ -100,9 +102,10 @@ class SetupActivity : Activity() {
         handler.postDelayed(timeout, 85000)
         executor.execute {
             val result = runCatching {
-                val output = attempt.allowRestrictedSettings(filesDir, packageName)
-                check(SetupPermissionResult.isAllowed(output)) {
-                    "Device did not confirm permission: ${output.trim().take(500)}"
+                val output = attempt.authorize(filesDir, packageName, Build.VERSION.SDK_INT)
+                check(SetupPermissionResult.isSuccessful(output, Build.VERSION.SDK_INT)) {
+                    val detail = if (needsRestrictedSettings) "permission" else "local ADB access"
+                    "Device did not confirm $detail: ${output.trim().take(500)}"
                 }
             }
             runOnUiThread {
@@ -113,8 +116,10 @@ class SetupActivity : Activity() {
                 authorize.isEnabled = true
                 result.fold(
                     onSuccess = {
-                        Log.i("OverlaySetup", "Restricted settings allowed and verified through local ADB")
-                        status.setText(R.string.setup_authorized)
+                        Log.i("OverlaySetup", if (needsRestrictedSettings)
+                            "Restricted settings allowed and verified through local ADB"
+                        else "Local ADB verified; restricted settings not required on this Android version")
+                        status.setText(if (needsRestrictedSettings) R.string.setup_authorized else R.string.setup_authorized_legacy)
                     },
                     onFailure = {
                         Log.w("OverlaySetup", "Local ADB setup failed", it)

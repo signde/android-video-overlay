@@ -13,7 +13,7 @@ class SetupAdbClient : Closeable {
     @Volatile private var socket: Socket? = null
     @Volatile private var cancelled = false
 
-    fun allowRestrictedSettings(directory: File, packageName: String): String {
+    fun authorize(directory: File, packageName: String, sdkInt: Int): String {
         require(packageName == "com.signde.androidvideooverlay")
         val transport = Socket()
         socket = transport
@@ -27,9 +27,7 @@ class SetupAdbClient : Closeable {
             }
             check(!cancelled) { "Setup cancelled" }
             transport.soTimeout = 15000
-            val command = "appops set $packageName ACCESS_RESTRICTED_SETTINGS allow && " +
-                "appops get $packageName ACCESS_RESTRICTED_SETTINGS; " +
-                "echo __OVERLAY_SETUP_EXIT__\$?"
+            val command = SetupPermissionResult.command(packageName, sdkInt)
             val output = StringBuilder()
             connection.open("shell:$command").use { stream ->
                 while (true) {

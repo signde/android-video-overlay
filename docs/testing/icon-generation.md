@@ -8,7 +8,7 @@
 
 ## Final prompt
 
-Use case: precise-object-edit. Asset type: square Android VideoInfoOverlay app icon.
+Use case: precise-object-edit. Asset type: square Android Video Info Overlay app icon.
 Image 1 is the edit target. Remove the large white "PPI" lettering completely,
 reconstructing the dark signde avatar artwork underneath. Preserve the recognizable
 green circuit-textured hand, dark signde wordmark, charcoal distressed background,

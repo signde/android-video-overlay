@@ -1,7 +1,7 @@
 # Installation & setup / Instalación y configuración
 
-Android VideoInfoOverlay is experimental. Menu names and debugging options vary by device.
-Android VideoInfoOverlay es experimental. Los menús y las opciones de depuración varían según el dispositivo.
+Android Video Info Overlay is experimental. Menu names and debugging options vary by device.
+Android Video Info Overlay es experimental. Los menús y las opciones de depuración varían según el dispositivo.
 
 ## English
 
@@ -30,7 +30,7 @@ https://github.com/signde/android-video-overlay/releases/latest/download/Android
    OS build** seven times. In **Developer options**, enable **USB debugging**.
    Menu names may vary. The app requires local ADB on **port 5555**; enabling or
    pairing **Wireless debugging** alone is not sufficient.
-3. **Open Android VideoInfoOverlay.** On its setup screen, select **2. Authorize
+3. **Open Android Video Info Overlay.** On its setup screen, select **2. Authorize
    local ADB and allow restricted settings**, read the explanation, then select
    **Continue**. This authorizes the app to request its own restricted-settings
    permission. It does not enable Accessibility or disable other services.
@@ -40,7 +40,7 @@ https://github.com/signde/android-video-overlay/releases/latest/download/Android
    gives the app powerful shell access. Keep debugging enabled only on a trusted
    network. Wait for **Restricted settings allowed and verified** in the app.
 5. **Enable Accessibility.** Select **3. Open Accessibility settings**, enable
-   **Android VideoInfoOverlay**, and accept Android's confirmation. Other
+   **Android Video Info Overlay**, and accept Android's confirmation. Other
    accessibility services can remain enabled. Press **Back** to return to setup.
 6. **Show the overlay.** Wait for **Accessibility service connected. Ready to show
    the overlay**, then select **4. Show overlay and finish**. Opening the app from
@@ -48,7 +48,15 @@ https://github.com/signde/android-video-overlay/releases/latest/download/Android
    connected; otherwise it opens setup. Remote-button behavior varies by device.
    Use the apps-list shortcut if Favorites / Bookmark is not assigned.
 
-To revisit setup, open **Settings > Accessibility > Android VideoInfoOverlay >
+**Android 11/12:** restricted-settings permission does not exist on these versions.
+Version 21.2.1 and later label step 2 **Authorize local ADB** and
+verifies the connection without requesting that permission. Continue to
+Accessibility after **Local ADB connected and verified**. If v21.2 reports
+**Unknown operation string: ACCESS_RESTRICTED_SETTINGS**, the ADB command reached
+the TV; skip to step 3 to test Accessibility rather than repeatedly retrying the
+unsupported command. This does not guarantee playback-metric support on that device.
+
+To revisit setup, open **Settings > Accessibility > Android Video Info Overlay >
 Configuration > Setup / permissions**.
 The **Overlay configuration** button at the bottom of setup opens the appearance
 and remote-button settings, even before Accessibility is enabled.
@@ -197,16 +205,16 @@ device/build, installation method, and exact output so we can investigate.
 ### 4. Enable and use the overlay
 
 1. Open **Settings > Accessibility** (sometimes under **System**) and enable
-   **Android VideoInfoOverlay**. Press Back to fully close the setup screen.
+   **Android Video Info Overlay**. Press Back to fully close the setup screen.
 2. Leave debugging enabled. When opening the overlay, approve the app's own local
    ADB connection on the TV. This authorization is separate from your computer's.
    The app needs port 5555; no root or any other helper is needed.
-3. Press **Favorites / Bookmark**, or open **Android VideoInfoOverlay** from the apps
+3. Press **Favorites / Bookmark**, or open **Android Video Info Overlay** from the apps
    list, to show or hide it. On Google TV Streamer, you can assign the customizable
    remote button to open the app in **Settings > Remotes & accessories**.
 
 For appearance and remote-button settings, open **Settings > Accessibility >
-Android VideoInfoOverlay > Configuration**.
+Android Video Info Overlay > Configuration**.
 
 The app uses an accessibility overlay, so it is not expected to appear under
 **Display over other apps**.
@@ -243,7 +251,7 @@ https://github.com/signde/android-video-overlay/releases/latest/download/Android
    veces **Compilación del SO de Android TV**. En las opciones para desarrolladores,
    activa **Depuración por USB**. La aplicación necesita ADB local en el **puerto
    5555**; activar o emparejar Depuración inalámbrica no basta.
-3. **Abre Android VideoInfoOverlay** y selecciona **2. Authorize local ADB and
+3. **Abre Android Video Info Overlay** y selecciona **2. Authorize local ADB and
    allow restricted settings**. Lee la explicación y pulsa **Continue**. La app
    solicitará su propio permiso de ajustes restringidos; no activará Accesibilidad
    ni desactivará otros servicios.
@@ -252,7 +260,7 @@ https://github.com/signde/android-video-overlay/releases/latest/download/Android
    no de otro ordenador. Autorízala solo si confías en el APK: ADB proporciona
    acceso potente al sistema. Mantén la depuración activada solo en una red de
    confianza. Espera el mensaje **Restricted settings allowed and verified**.
-5. Selecciona **3. Open Accessibility settings**, activa **Android VideoInfoOverlay**
+5. Selecciona **3. Open Accessibility settings**, activa **Android Video Info Overlay**
    y acepta la confirmación. Los demás servicios pueden permanecer activados.
    Pulsa **Atrás** para volver a la configuración de la aplicación.
 6. Espera **Accessibility service connected. Ready to show the overlay** y pulsa
@@ -261,8 +269,16 @@ https://github.com/signde/android-video-overlay/releases/latest/download/Android
    abre la configuración inicial. Usa este acceso si Favoritos / Bookmark no está
    asignado; el comportamiento del botón del mando depende del dispositivo.
 
+**Android 11/12:** el permiso de ajustes restringidos no existe en estas versiones.
+La versión 21.2.1 y posteriores muestran **Authorize local ADB** en el paso 2
+y verifica la conexión sin solicitar ese permiso. Continúa con Accesibilidad tras
+**Local ADB connected and verified**. Si v21.2 muestra **Unknown operation string:
+ACCESS_RESTRICTED_SETTINGS**, el comando ADB llegó al TV; pasa al paso 3 para probar
+Accesibilidad en lugar de repetir el comando no compatible. Esto no garantiza que
+las métricas de reproducción funcionen en ese dispositivo.
+
 Para repetir la configuración, abre **Ajustes > Accesibilidad > Android
-VideoInfoOverlay > Configuración > Setup / permissions**.
+Video Info Overlay > Configuración > Setup / permissions**.
 El botón **Overlay configuration**, al final de la pantalla de configuración
 inicial, abre los ajustes de apariencia y del mando, incluso sin Accesibilidad activada.
 
@@ -407,16 +423,16 @@ APK, dispositivo/compilación, método de instalación y salida exacta para inve
 ### 4. Activa y utiliza el overlay
 
 1. Abre **Ajustes > Accesibilidad** (a veces dentro de **Sistema**) y activa
-   **Android VideoInfoOverlay**. Pulsa Atrás para cerrar completamente la configuración.
+   **Android Video Info Overlay**. Pulsa Atrás para cerrar completamente la configuración.
 2. Deja la depuración activada. Al abrir el overlay, autoriza en el TV la conexión
    ADB local de la propia aplicación. Es independiente de la autorización del ordenador.
    La aplicación necesita el puerto 5555; no requiere root ni ninguna otra aplicación auxiliar.
-3. Pulsa **Favoritos / Bookmark**, o abre **Android VideoInfoOverlay** desde la lista
+3. Pulsa **Favoritos / Bookmark**, o abre **Android Video Info Overlay** desde la lista
    de aplicaciones, para mostrarlo u ocultarlo. En Google TV Streamer puedes asignar
    el botón personalizable a la aplicación en **Ajustes > Mandos y accesorios**.
 
 Para configurar la apariencia y el botón del mando, abre **Ajustes > Accesibilidad >
-Android VideoInfoOverlay > Configuración**.
+Android Video Info Overlay > Configuración**.
 
 La aplicación utiliza un overlay de accesibilidad, por lo que no se espera que
 aparezca en **Mostrar sobre otras aplicaciones**.

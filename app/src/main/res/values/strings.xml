@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name" translatable="false">Android VideoInfoOverlay</string>
-    <string name="app_settings_name" translatable="false">Android VideoInfoOverlay Settings</string>
+    <string name="app_name" translatable="false">Android Video Info Overlay</string>
+    <string name="app_settings_name" translatable="false">Android Video Info Overlay Settings</string>
     <string name="enable_accessibility_first">Enable %1$s in Accessibility first</string>
     <string name="app_attribution">Based on Jamal’s original application and the almirus source mirror. MIT licensed.</string>
     <string name="starting">Starting…</string>

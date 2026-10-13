@@ -1619,72 +1619,21 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
     }
 
     private fun getCpuFrequency(): List<Long> {
-        val cpuFrequencies = mutableListOf<Long>()
-
-        for (i in 0 until Runtime.getRuntime().availableProcessors()) {
-            val cpuFreqFilePath = "/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq"
-            try {
-                val cpuFreqFile = File(cpuFreqFilePath)
-                if (cpuFreqFile.exists()) {
-                    val frequency = cpuFreqFile.readText().trim().toLong()
-                    cpuFrequencies.add(frequency)
-                } else {
-                    cpuFrequencies.add(0L)
-                }
-            } catch (e: FileNotFoundException) {
-                e.printStackTrace()
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
+        return CpuFrequencyReader.read(Runtime.getRuntime().availableProcessors()) { core ->
+            File("/sys/devices/system/cpu/cpu$core/cpufreq/scaling_cur_freq").readText()
         }
-
-        return cpuFrequencies
     }
 
     private fun getMinCpuFrequency(): List<Long> {
-        val maxCpuFrequencies = mutableListOf<Long>()
-
-        for (i in 0 until Runtime.getRuntime().availableProcessors()) {
-            val maxCpuFreqFilePath = "/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_min_freq"
-            try {
-                val maxCpuFreqFile = File(maxCpuFreqFilePath)
-                if (maxCpuFreqFile.exists()) {
-                    val maxFrequency = maxCpuFreqFile.readText().trim().toLong()
-                    maxCpuFrequencies.add(maxFrequency)
-                } else {
-                    maxCpuFrequencies.add(0L)
-                }
-            } catch (e: FileNotFoundException) {
-                e.printStackTrace()
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
+        return CpuFrequencyReader.read(Runtime.getRuntime().availableProcessors()) { core ->
+            File("/sys/devices/system/cpu/cpu$core/cpufreq/cpuinfo_min_freq").readText()
         }
-
-        return maxCpuFrequencies
     }
 
     private fun getMaxCpuFrequency(): List<Long> {
-        val maxCpuFrequencies = mutableListOf<Long>()
-
-        for (i in 0 until Runtime.getRuntime().availableProcessors()) {
-            val maxCpuFreqFilePath = "/sys/devices/system/cpu/cpu$i/cpufreq/cpuinfo_max_freq"
-            try {
-                val maxCpuFreqFile = File(maxCpuFreqFilePath)
-                if (maxCpuFreqFile.exists()) {
-                    val maxFrequency = maxCpuFreqFile.readText().trim().toLong()
-                    maxCpuFrequencies.add(maxFrequency)
-                } else {
-                    maxCpuFrequencies.add(0L)
-                }
-            } catch (e: FileNotFoundException) {
-                e.printStackTrace()
-            } catch (e: IOException) {
-                e.printStackTrace()
-            }
+        return CpuFrequencyReader.read(Runtime.getRuntime().availableProcessors()) { core ->
+            File("/sys/devices/system/cpu/cpu$core/cpufreq/cpuinfo_max_freq").readText()
         }
-
-        return maxCpuFrequencies
     }
 
     private fun printCpuCurrPerc(): String {
@@ -1693,8 +1642,9 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
         val maxFrequencies = getMaxCpuFrequency()
         return frequencies.mapIndexed { index, frequency ->
             val frequencyInMHz = frequency / 1000
-            val minFrequency = minFrequencies[index]
-            val maxFrequency = maxFrequencies[index]
+            val minFrequency = minFrequencies.getOrNull(index) ?: 0L
+            val maxFrequency = maxFrequencies.getOrNull(index) ?: 0L
+            if (frequency <= 0 || minFrequency <= 0 || maxFrequency <= 0) return@mapIndexed "Unavailable"
 
             val utilization = if (maxFrequency > minFrequency) {
                 val utilizationValue = (frequency - minFrequency).toDouble() / (maxFrequency - minFrequency) * 100
@@ -1712,9 +1662,11 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
         val maxFrequencies = getMaxCpuFrequency()
         return frequencies.mapIndexed { index, frequency ->
             val frequencyInMHz = frequency / 1000
-            val maxFrequencyInMHz = maxFrequencies[index] / 1000
-            val utilization = if (maxFrequencies[index] > 0) {
-                (frequency.toDouble() / maxFrequencies[index] * 100).toInt()
+            val maxFrequency = maxFrequencies.getOrNull(index) ?: 0L
+            if (frequency <= 0 || maxFrequency <= 0) return@mapIndexed "Unavailable"
+            val maxFrequencyInMHz = maxFrequency / 1000
+            val utilization = if (maxFrequency > 0) {
+                (frequency.toDouble() / maxFrequency * 100).toInt()
             } else {
                 0
             }
@@ -1725,6 +1677,7 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
     private fun printCpuCurr(): String {
         val frequencies = getCpuFrequency()
         return frequencies.mapIndexed { _, frequency ->
+            if (frequency <= 0) return@mapIndexed "Unavailable"
             val frequencyInMHz = frequency / 1000
 
             "$frequencyInMHz MHz"
@@ -1736,7 +1689,9 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
         val maxFrequencies = getMaxCpuFrequency()
         return frequencies.mapIndexed { index, frequency ->
             val frequencyInMHz = frequency / 1000
-            val maxFrequencyInMHz = maxFrequencies[index] / 1000
+            val maxFrequency = maxFrequencies.getOrNull(index) ?: 0L
+            if (frequency <= 0 || maxFrequency <= 0) return@mapIndexed "Unavailable"
+            val maxFrequencyInMHz = maxFrequency / 1000
 
             "$frequencyInMHz | $maxFrequencyInMHz MHz"
         }.joinToString(separator = "\n")
@@ -1747,8 +1702,9 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
         val minFrequencies = getMinCpuFrequency()
         val maxFrequencies = getMaxCpuFrequency()
         return frequencies.mapIndexed { index, frequency ->
-            val minFrequency = minFrequencies[index]
-            val maxFrequency = maxFrequencies[index]
+            val minFrequency = minFrequencies.getOrNull(index) ?: 0L
+            val maxFrequency = maxFrequencies.getOrNull(index) ?: 0L
+            if (frequency <= 0 || minFrequency <= 0 || maxFrequency <= 0) return@mapIndexed "Unavailable"
 
             val utilization = if (maxFrequency > minFrequency) {
                 val utilizationValue = (frequency - minFrequency).toDouble() / (maxFrequency - minFrequency) * 100

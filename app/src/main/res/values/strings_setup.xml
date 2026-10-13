@@ -1,18 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="setup_title">Android VideoInfoOverlay setup</string>
+    <string name="setup_title">Android Video Info Overlay setup</string>
     <string name="setup_intro">No computer needed on supported devices. Enable Developer options (press Android TV OS build seven times in Settings → System → About), then USB debugging. The app needs local ADB on port 5555; Wireless debugging pairing alone is not enough.</string>
     <string name="setup_developer_button">1. Open Developer options</string>
     <string name="setup_authorize_button">2. Authorize local ADB and allow restricted settings</string>
+    <string name="setup_authorize_legacy_button">2. Authorize local ADB</string>
     <string name="setup_consent_title">Allow setup through local ADB?</string>
-    <string name="setup_consent_message">The app will connect to this TV only and ask Android to allow restricted settings for Android VideoInfoOverlay. It will not enable Accessibility for you or change other accessibility services.\n\nAccept the TV’s “Allow USB debugging?” prompt. Choose “Always allow” to let the overlay reconnect for playback metrics. ADB gives this app powerful shell access; continue only if you trust it. Leave debugging enabled only on a trusted network.</string>
+    <string name="setup_consent_message">The app will connect to this TV only and ask Android to allow restricted settings for Android Video Info Overlay. It will not enable Accessibility for you or change other accessibility services.\n\nAccept the TV’s “Allow USB debugging?” prompt. Choose “Always allow” to let the overlay reconnect for playback metrics. ADB gives this app powerful shell access; continue only if you trust it. Leave debugging enabled only on a trusted network.</string>
+    <string name="setup_consent_legacy_message">The app will connect to this TV only and verify local ADB access for playback metrics. Android 11/12 do not require the restricted-settings permission. The app will not enable Accessibility for you or change other accessibility services.\n\nAccept the TV’s “Allow USB debugging?” prompt. Choose “Always allow” to let the overlay reconnect. ADB gives this app powerful shell access; continue only if you trust it. Leave debugging enabled only on a trusted network.</string>
     <string name="setup_consent_allow">Continue</string>
     <string name="setup_not_authorized">Local ADB permission has not been checked in this session.</string>
     <string name="setup_authorizing">Connecting locally… Watch for “Allow USB debugging?” on the TV and accept. Waiting up to 60 seconds for approval.</string>
     <string name="setup_authorized">Restricted settings allowed and verified. Enable Accessibility below, then press Back to return here.</string>
+    <string name="setup_authorized_legacy">Local ADB connected and verified. Restricted settings are not required on Android 11/12. Enable Accessibility below, then press Back to return here.</string>
     <string name="setup_failed">Setup did not complete: %1$s\nCheck USB debugging and port 5555, then retry. If this device does not expose local ADB, computer-assisted setup may still be required.</string>
     <string name="setup_accessibility_button">3. Open Accessibility settings</string>
-    <string name="setup_service_waiting">Accessibility service not connected yet. Enable Android VideoInfoOverlay in Accessibility, then return here. Other services can remain enabled.</string>
+    <string name="setup_service_waiting">Accessibility service not connected yet. Enable Android Video Info Overlay in Accessibility, then return here. Other services can remain enabled.</string>
     <string name="setup_service_ready">Accessibility service connected. Ready to show the overlay.</string>
     <string name="setup_finish_button">4. Show overlay and finish</string>
     <string name="setup_configuration_button">Overlay configuration</string>
