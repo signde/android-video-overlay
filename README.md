@@ -11,8 +11,10 @@ Package ID: `com.signde.androidvideooverlay`
 [Download the latest experimental APK](https://github.com/signde/android-video-overlay/releases/latest/download/Android_VideoInfoOverlay.apk)
 · [Release notes and older versions](https://github.com/signde/android-video-overlay/releases)
 
-The direct APK link above also works in **Downloader** and stays the same for
-future releases. Use it as the target when creating an [AFTVnews Downloader code](https://go.aftvnews.com/).
+**Downloader code: `3517057`** · [aftv.news/3517057](https://aftv.news/3517057)
+
+Enter the code in Downloader to download the latest APK. The code and short URL
+point to the direct APK link above and stay the same for future releases.
 
 ![Android VideoInfoOverlay during Dolby surround sample playback](docs/images/overlay-dolby-sample.png)
 

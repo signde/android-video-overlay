@@ -13,9 +13,9 @@ or choose a version from [Releases](https://github.com/signde/android-video-over
 See the [README](README.md#verified-devices) for verified devices. Available
 metrics vary by device and app; support does not mean every field is available.
 
-**Downloader:** enter the following URL in its address field. It always points to
-the latest published APK, so a Downloader code made for this URL does not need to
-change for each release:
+**Downloader:** enter code **`3517057`** in its address field, or use
+[aftv.news/3517057](https://aftv.news/3517057). Both point to the latest published
+APK, so the code does not change for each release. Direct download destination:
 
 ```text
 https://github.com/signde/android-video-overlay/releases/latest/download/Android_VideoInfoOverlay.apk
@@ -226,9 +226,9 @@ Consulta los dispositivos verificados en el [README](README.md#verified-devices)
 Las métricas disponibles dependen del dispositivo y la aplicación; no se garantiza
 que aparezcan todos los campos. Los botones de configuración aparecen en inglés.
 
-**Downloader:** introduce esta URL en el campo de dirección. Siempre apunta al APK
-publicado más reciente; un código de Downloader creado para ella no necesita
-cambiar con cada versión:
+**Downloader:** introduce el código **`3517057`** en el campo de dirección, o usa
+[aftv.news/3517057](https://aftv.news/3517057). Ambos apuntan al APK publicado más
+reciente; el código no cambia con cada versión. Destino de descarga directa:
 
 ```text
 https://github.com/signde/android-video-overlay/releases/latest/download/Android_VideoInfoOverlay.apk

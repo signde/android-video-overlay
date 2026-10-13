@@ -11,8 +11,10 @@ replace the Downloader target.
 https://github.com/signde/android-video-overlay/releases/latest/download/Android_VideoInfoOverlay.apk
 ```
 
-Create an [AFTVnews code](https://go.aftvnews.com/) for that URL once. Do not use a
-version-specific tag, release-page URL, or temporary asset-storage redirect.
+The existing Downloader code is **`3517057`**, with short URL
+[aftv.news/3517057](https://aftv.news/3517057), pointing to the destination above.
+Keep this code for future releases. Do not change its target to a version-specific
+tag, release-page URL, or temporary asset-storage redirect.
 GitHub's [latest asset link](https://docs.github.com/en/repositories/releasing-projects-on-github/linking-to-releases)
 selects the identically named asset on the latest release. No moving `latest`
 tag or duplicate release is necessary.
