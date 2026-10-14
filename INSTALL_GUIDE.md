@@ -10,7 +10,7 @@ Android Video Info Overlay es experimental. Los menús y las opciones de depurac
 Guided setup is included starting with **v21.2**. Download the
 [latest APK](https://github.com/signde/android-video-overlay/releases/latest/download/Android_VideoInfoOverlay.apk),
 or choose a version from [Releases](https://github.com/signde/android-video-overlay/releases).
-See the [README](README.md#verified-devices) for verified devices. Available
+See the [README](README.md#supported-devices) for device compatibility. Available
 metrics vary by device and app; support does not mean every field is available.
 
 **Downloader:** enter code **`3517057`** in its address field, or use
@@ -27,7 +27,8 @@ https://github.com/signde/android-video-overlay/releases/latest/download/Android
    To update an existing installation, install the new APK over it; do not
    uninstall first. Existing settings and authorizations should be retained.
 2. **Enable debugging.** Open **Settings > System > About** and press **Android TV
-   OS build** seven times. In **Developer options**, enable **USB debugging**.
+   OS build** seven times. In **Developer options**, enable **USB debugging**
+   (**Network debugging** on some devices).
    Menu names may vary. The app requires local ADB on **port 5555**; enabling or
    pairing **Wireless debugging** alone is not sufficient.
 3. **Open Android Video Info Overlay.** On its setup screen, select **2. Authorize
@@ -50,7 +51,7 @@ https://github.com/signde/android-video-overlay/releases/latest/download/Android
 
 **Android 11/12:** restricted-settings permission does not exist on these versions.
 Version 21.2.1 and later label step 2 **Authorize local ADB** and
-verifies the connection without requesting that permission. Continue to
+verify the connection without requesting that permission. Continue to
 Accessibility after **Local ADB connected and verified**. If v21.2 reports
 **Unknown operation string: ACCESS_RESTRICTED_SETTINGS**, the ADB command reached
 the TV; skip to step 3 to test Accessibility rather than repeatedly retrying the
@@ -65,7 +66,8 @@ and remote-button settings, even before Accessibility is enabled.
 
 - If the app opens without the guided setup and Accessibility is not enabled,
   check that you installed v21.2 or newer. v21.1 does not include guided setup.
-- If no debugging prompt appears, or setup times out, check **USB debugging** and
+- If no debugging prompt appears, or setup times out, check **USB debugging**
+  (**Network debugging** on some devices) and
   retry the authorization step. Already-authorized installations may not show
   another prompt. Some devices do not expose local port 5555; report the exact
   error rather than assuming Wireless debugging pairing will fix it.
@@ -79,6 +81,33 @@ and remote-button settings, even before Accessibility is enabled.
 
 The app uses an accessibility overlay. It does not need a separate **Display over
 other apps** permission, root, or any other helper.
+
+### Remote-button setup
+
+The default toggle is **Favorites / Bookmark** (including the onn star button
+where present). Not every remote has this button.
+
+1. Open the TV's **Settings > Accessibility > Android Video Info Overlay >
+   Configuration**. Accessibility may be under **System** on your TV.
+   If you are already on the app's setup screen, select **Overlay configuration**.
+2. Select **Overlay > Button for remote control**.
+3. Choose **Favorites / Bookmark**, **TV Guide**, a colored button, or a digit
+   **0–9** that your remote actually provides. **None** disables direct key handling.
+4. Return to playback and press the selected button. **Long button press** is off
+   by default; if enabled, hold the selected button for at least 750 ms, then release.
+
+The current version uses a fixed list; it cannot learn an arbitrary button by
+asking you to press it. Selecting a button works only if its key event reaches
+the overlay service. A label on a remote does not guarantee that it sends the
+matching event.
+
+If none of the choices work, open **Android Video Info Overlay** from the apps
+list to toggle it, or use **Configuration > Show / hide overlay**. These require
+the accessibility service to be connected. If your device's shortcut settings or
+an existing button-mapping app can launch an app, assign **Android Video Info
+Overlay** as the target. This uses the app-launch toggle rather than its fixed
+key list; availability depends on the device and mapper. Opening the app shows
+setup instead if the accessibility service is disconnected.
 
 ### Computer-assisted fallback
 
@@ -230,7 +259,7 @@ References: [ADB connection and authorization](https://developer.android.com/too
 La configuración guiada está incluida desde **v21.2**. Descarga el
 [APK más reciente](https://github.com/signde/android-video-overlay/releases/latest/download/Android_VideoInfoOverlay.apk)
 o elige una versión en [Releases](https://github.com/signde/android-video-overlay/releases).
-Consulta los dispositivos verificados en el [README](README.md#verified-devices).
+Consulta la compatibilidad de dispositivos en el [README](README.md#supported-devices).
 Las métricas disponibles dependen del dispositivo y la aplicación; no se garantiza
 que aparezcan todos los campos. Los botones de configuración aparecen en inglés.
 
@@ -249,8 +278,9 @@ https://github.com/signde/android-video-overlay/releases/latest/download/Android
    deberían conservarse.
 2. **Activa la depuración.** En **Ajustes > Sistema > Información**, pulsa siete
    veces **Compilación del SO de Android TV**. En las opciones para desarrolladores,
-   activa **Depuración por USB**. La aplicación necesita ADB local en el **puerto
-   5555**; activar o emparejar Depuración inalámbrica no basta.
+   activa **Depuración por USB** (**Depuración de red** en algunos dispositivos).
+   La aplicación necesita ADB local en el **puerto 5555**;
+   activar o emparejar Depuración inalámbrica no basta.
 3. **Abre Android Video Info Overlay** y selecciona **2. Authorize local ADB and
    allow restricted settings**. Lee la explicación y pulsa **Continue**. La app
    solicitará su propio permiso de ajustes restringidos; no activará Accesibilidad
@@ -271,7 +301,7 @@ https://github.com/signde/android-video-overlay/releases/latest/download/Android
 
 **Android 11/12:** el permiso de ajustes restringidos no existe en estas versiones.
 La versión 21.2.1 y posteriores muestran **Authorize local ADB** en el paso 2
-y verifica la conexión sin solicitar ese permiso. Continúa con Accesibilidad tras
+y verifican la conexión sin solicitar ese permiso. Continúa con Accesibilidad tras
 **Local ADB connected and verified**. Si v21.2 muestra **Unknown operation string:
 ACCESS_RESTRICTED_SETTINGS**, el comando ADB llegó al TV; pasa al paso 3 para probar
 Accesibilidad en lugar de repetir el comando no compatible. Esto no garantiza que
@@ -283,7 +313,8 @@ El botón **Overlay configuration**, al final de la pantalla de configuración
 inicial, abre los ajustes de apariencia y del mando, incluso sin Accesibilidad activada.
 
 **Si falla:** comprueba que instalaste v21.2 o posterior y que Depuración por USB
-está activada. Reintenta la autorización si no aparece el aviso o se agota el
+(Depuración de red en algunos dispositivos) está activada. Reintenta la autorización
+si no aparece el aviso o se agota el
 tiempo; una instalación ya autorizada puede no mostrar otro aviso. Algunos
 dispositivos no ofrecen ADB local en el puerto 5555. Si Accesibilidad se desactiva,
 comprueba que la verificación de ajustes restringidos haya terminado correctamente.
@@ -295,6 +326,33 @@ de Android, el paso y el mensaje exacto del error.
 La configuración correcta no garantiza todas las métricas de reproducción. No se
 necesita el permiso **Mostrar sobre otras aplicaciones**, root ni otra aplicación
 auxiliar: se utiliza un overlay de accesibilidad.
+
+### Configurar el botón del mando
+
+El botón predeterminado es **Favorites / Bookmark** (incluido el botón de estrella
+de onn cuando está presente). No todos los mandos tienen ese botón.
+
+1. Abre **Ajustes > Accesibilidad > Android Video Info Overlay > Configuración**.
+   Accesibilidad puede estar dentro de **Sistema**. Si ya estás en la pantalla
+   inicial de la app, selecciona **Overlay configuration**.
+2. Selecciona **Overlay > Button for remote control**.
+3. Elige **Favorites / Bookmark**, **TV Guide**, un botón de color o un número
+   **0–9** que exista en tu mando. **None** desactiva la detección directa de teclas.
+4. Vuelve a la reproducción y pulsa el botón elegido. **Long button press** está
+   desactivado por defecto; si lo activas, mantén pulsado el botón durante al menos
+   750 ms y después suéltalo.
+
+La versión actual ofrece una lista fija; no permite aprender una tecla al pulsarla.
+El evento de la tecla debe llegar al servicio del overlay. La etiqueta del botón
+no garantiza que el mando envíe el evento correspondiente.
+
+Si ninguna opción funciona, abre **Android Video Info Overlay** desde la lista de
+apps para mostrarlo u ocultarlo, o usa **Configuración > Show / hide overlay**.
+El servicio de accesibilidad debe estar conectado. Si los ajustes de accesos
+directos del dispositivo o una app de reasignación que ya utilizas permiten abrir
+una aplicación, asigna **Android Video Info Overlay** como destino. Esto utiliza
+el acceso de la app en lugar de la lista fija; depende del dispositivo y del
+reasignador. Si el servicio no está conectado, se abre la configuración inicial.
 
 ### Alternativa con ordenador
 

@@ -1,10 +1,10 @@
 # Android Video Info Overlay
 
-Experimental video information overlay for Android TV devices.
-Compatibility with other devices is not guaranteed.
+Experimental video information overlay for Android TV devices based
+on [jamal2362](https://github.com/jamal2362)'s original application for SEI804 devices.
+Compatibility with all devices is not guaranteed.
 
-Based on Jamal's original application and the almirus source mirror.
-Original attribution and MIT license are retained.
+![Android Video Info Overlay during Dolby surround sample playback](docs/images/overlay-dolby-sample.png)
 
 Package ID: `com.signde.androidvideooverlay`
 
@@ -16,26 +16,36 @@ Package ID: `com.signde.androidvideooverlay`
 Enter the code in Downloader to download the latest APK. The code and short URL
 point to the direct APK link above and stay the same for future releases.
 
-![Android Video Info Overlay during Dolby surround sample playback](docs/images/overlay-dolby-sample.png)
+See the [avsforum thread](https://www.avsforum.com/threads/video-information-overlay-for-select-android-tv-devices.3354271/) for more discussion.
 
-## Verified devices
+## Supported Devices
 
-- onn 4K Pro v2, Android TV 14
-- onn 4K Plus, Android TV 14
-- onn 4K Pro (2024), v21.1 (user-reported)
-- onn 4K Streaming Device (2026), Android TV 14
-- RockTek GX1, Android TV 14 (user-reported)
-- Google TV Streamer 4K (contributor-reported)
+Android TV 11 and up is required.
+Available metrics vary by device and playback app.
+Unsupported readings may be omitted or shown as unavailable.
 
-Available metrics vary by device and playback app. Unsupported readings show
-as unavailable; HDMI HDR output is not yet available on the tested Realtek devices.
+### Working
+
+- Google TV Streamer 4K
+- onn 4K Pro v2
+- onn 4K Plus
+- onn 4K Pro v1
+- onn 4K Streaming Device (2026)
+- RockTek GX1
+- TCL Q51K
+- TCL QM7
+
+### Limited
+
+- Shield TV: the overlay can run and show basic system information, but useful playback details are largely unavailable.
 
 ## Setup and use
 
 See the [installation guide](INSTALL_GUIDE.md) for guided setup, Downloader
 installation, and help if the Accessibility toggle immediately switches off.
 
-1. Install the APK and enable **Developer options > USB debugging** on the TV.
+1. Install the APK and enable **USB debugging** in the TV's **Developer options**
+   (**Network debugging** on some devices).
 2. Open **Android Video Info Overlay** and follow its guided setup to authorize
    local ADB and allow restricted settings where required. Approve the TV's debugging prompt
    only if you trust this app. No computer commands are needed on supported devices.
@@ -49,6 +59,9 @@ installation, and help if the Accessibility toggle immediately switches off.
 For appearance and remote-button settings, open **Settings > Accessibility >
 Android Video Info Overlay > Configuration**, or **Overlay configuration** at the
 bottom of the setup screen. Revisit setup through **Configuration > Setup / permissions**.
+
+To choose a toggle button, go to **Configuration > Overlay > Button for remote
+control**. See [remote-button setup and alternatives](INSTALL_GUIDE.md#remote-button-setup).
 
 ## Changelog
 
