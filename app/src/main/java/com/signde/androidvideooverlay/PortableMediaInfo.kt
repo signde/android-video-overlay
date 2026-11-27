@@ -238,26 +238,36 @@ object PortableMediaInfoParser {
     }
 
     private fun detectHdrFromLogcat(log: String, decoder: String, videoTrack: String): String {
-        // Prefer current-decoder metadata. Do not scan unrelated codec threads
-        // or old log history when the active allocation has rolled out of logcat.
+        // nes6: the transfer is logged in three CCodecConfig fields.
+        // coded (bitstream VUI) is often 0 for VP9/HEVC while raw
+        // (input value, also in "c2 config diff is" lines) and default
+        // carry the real value (VP9 HDR: coded=0, raw=6, default=6;
+        // HEVC HLG: coded=7, raw=7; AV1 SDR: coded=3, raw=3). The
+        // "int32_t color-transfer" CCodec line is NOT read: it says 3
+        // even for HDR content. Scan after the last allocate first
+        // (fresh per-instance values, last non-zero wins); if the
+        // current instance logged nothing definitive, fall back to the
+        // last non-zero in the whole window. "0" is unspecified.
         val lines = log.lines()
-        val start = lines.indexOfLast { "allocate($decoder)" in it }
-        val prefix = Regex("""^\S+\s+\S+\s+(\d+)\s+(\d+)\s""")
-        val thread = if (start >= 0) prefix.find(lines[start])?.groupValues?.get(2) else null
-        if (thread != null) {
+        val transferRegex =
+            Regex("""\b(coded\.vui\.color\.transfer|raw\.color\.transfer|default\.color\.transfer)\s*=\s*(\d+)\b""")
+        fun scan(range: List<String>): String? {
             var transfer: String? = null
-            for (line in lines.drop(start + 1)) {
-                if (prefix.find(line)?.groupValues?.get(2) != thread) continue
-                if ("allocate(" in line) break
+            for (line in range) {
                 if ("CCodecConfig" !in line) continue
-                Regex("""\bcoded\.vui\.color\.transfer\s*=\s*(\d+)\b""")
-                    .find(line)?.let { transfer = it.groupValues[1] }
+                transferRegex.find(line)?.let {
+                    val v = it.groupValues[2]
+                    if (v != "0") transfer = v
+                }
             }
-            when (transfer) {
-                "6" -> return "HDR10"
-                "7" -> return "HLG"
-                "1", "2", "3" -> return "SDR"
-            }
+            return transfer
+        }
+        val start = lines.indexOfLast { "allocate($decoder)" in it }
+        val transfer = if (start >= 0) scan(lines.drop(start + 1)) ?: scan(lines) else scan(lines)
+        when (transfer) {
+            "6" -> return "HDR10"
+            "7" -> return "HLG"
+            "1", "2", "3" -> return "SDR"
         }
         // A selected track is a fallback only if not superseded by a newer
         // allocation or rendition change. Main 10 / bit depth alone is not HDR.

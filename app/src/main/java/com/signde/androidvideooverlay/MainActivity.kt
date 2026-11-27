@@ -20,6 +20,8 @@ import android.net.TrafficStats
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.SystemClock
+import kotlin.math.roundToInt
 import android.provider.Settings
 import android.util.Log
 import android.view.Display
@@ -78,6 +80,16 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
     private var stream: AdbStream? = null
     @Volatile private var portableMediaInfo = PortableMediaInfo()
     @Volatile private var portableMediaInfoUpdatedAt = 0L
+    // nes2: measured frame rate from sys.nes.info.frame_count deltas,
+    // and a latch for the stream HDR detected from logcat (its config
+    // lines roll out of the logcat window once playback runs a while).
+    private var lastFrameCount = -1L
+    private var lastFrameCountAt = 0L
+    private var measuredFpsText = ""
+    private var smoothedFps: Double? = null
+    private var measuredFpsKey = ""
+    private var latchedStreamHdr = ""
+    private var latchedStreamHdrKey = ""
     private var myAsyncTask: MyAsyncTask? = null
     private var updateJob: Job? = null
     private var debugToggleReceiver: BroadcastReceiver? = null
@@ -440,7 +452,6 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
                 val detectedMediaInfo = getPortableMediaInfo()
                 val videoFormat = getSystemProperty("sys.nes.info.video_format").ifEmpty { detectedMediaInfo.videoFormat }
                 val videoResolution = getSystemProperty("sys.nes.info.video_resolution").ifEmpty { detectedMediaInfo.videoResolution }
-                val frameRate = getSystemProperty("sys.nes.info.frame_rate").ifEmpty { detectedMediaInfo.frameRate }
                 val displayResolution = getSystemProperty("sys.nes.info.display_resolution")
                     .ifEmpty { getDisplayResolutionFallback() }
                 val colorSpace = getSystemProperty("sys.nes.info.color_space")
@@ -448,6 +459,8 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
                 val hdrStatus = getSystemProperty("sys.nes.info.hdr_status")
                     .ifEmpty { detectedMediaInfo.hdrOutput }
                     .ifEmpty { "Unavailable" }
+                val nesVideoBitrate = formatNesBitrate(getSystemProperty("sys.nes.info.bit_rate"))
+                val nesStreamHdr = formatNesHdrStatus(hdrStatus)
                 val hdrPolicy = getSystemProperty("sys.nes.info.hdr_policy")
                     .ifEmpty { getHdrPolicyFallback() }
                 val hdrPriority = getSystemProperty("sys.nes.info.hdr_priority")
@@ -455,6 +468,9 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
                 val audioMode = getSystemProperty("sys.nes.info.audio_mode").ifEmpty { detectedMediaInfo.audioMode }
                 val appName = getSystemProperty("sys.nes.info.app_name")
                     .ifEmpty { getActiveAppNameFallback() }
+                val frameRate = measureFrameRate("$videoFormat|$videoResolution|$appName")
+                    .ifEmpty { getSystemProperty("sys.nes.info.frame_rate").ifEmpty { detectedMediaInfo.frameRate } }
+                val streamHdr = updateStreamHdrLatch("$videoFormat|$videoResolution|$appName", detectedMediaInfo.videoHdr, videoFormat.isNotEmpty())
                 val cpuCurrPerc = printCpuCurrPerc()
                 val cpuCurrMaxPerc = printCpuCurrMaxPerc()
                 val cpuCurr = printCpuCurr()
@@ -643,8 +659,8 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
                             appendLine(modifiedVideoFormat)
                         }
                     }
-                    if (!isHideVideoFormat) appendLine(detectedMediaInfo.videoBitrate.ifEmpty { "Unavailable" })
-                    if (!isHideHdrStatus) appendLine(detectedMediaInfo.videoHdr.ifEmpty { "Unavailable" })
+                    if (!isHideVideoFormat) appendLine(detectedMediaInfo.videoBitrate.ifEmpty { nesVideoBitrate }.ifEmpty { "Unavailable" })
+                    if (!isHideHdrStatus) appendLine(streamHdr.ifEmpty { nesStreamHdr }.ifEmpty { "Unavailable" })
 
                     if (!isHideEmptyVideoAudioLine && !isEmptyLine) {
                         appendLine()
@@ -1074,6 +1090,97 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
         }
     }
 
+    // nes2: the NES tracker reports a nominal frame rate (e.g. 30fps from
+    // a fixed frame_dur) that does not match the decoded output. Measure
+    // the real playback rate from sys.nes.info.frame_count deltas instead.
+    private fun measureFrameRate(videoKey: String): String {
+        // nes5: getprop spawns a process per call, so its latency varies
+        // with CPU load; timestamp AFTER the read so (count, now) is a
+        // consistent pair, otherwise the rate jitters by several fps.
+        val count = getSystemProperty("sys.nes.info.frame_count").trim().toLongOrNull()
+            ?: run { lastFrameCount = -1L; return "" }
+        val now = SystemClock.elapsedRealtime()
+        if (videoKey != measuredFpsKey) {
+            measuredFpsKey = videoKey
+            lastFrameCount = count
+            lastFrameCountAt = now
+            measuredFpsText = ""
+            smoothedFps = null
+            return ""
+        }
+        if (lastFrameCount < 0L) {
+            lastFrameCount = count
+            lastFrameCountAt = now
+            return measuredFpsText
+        }
+        val dtMs = now - lastFrameCountAt
+        val dc = count - lastFrameCount
+        if (dc < 0L) {
+            // Decoder restarted: re-baseline and drop the latched HDR.
+            lastFrameCount = count
+            lastFrameCountAt = now
+            measuredFpsText = ""
+            smoothedFps = null
+            latchedStreamHdr = ""
+            latchedStreamHdrKey = ""
+            return ""
+        }
+        // nes6: 3s window + slower EMA (0.3) to steady the reading;
+        // at 60fps the 2s window jittered by +/-3fps (63 for true 60).
+        if (dtMs >= 3000L) {
+            if (dc > 0L) {
+                val fps = dc.toDouble() / dtMs * 1000.0
+                if (fps >= 1.0 && fps <= 240.0) {
+                    smoothedFps = if (smoothedFps == null) fps else smoothedFps!! * 0.7 + fps * 0.3
+                    measuredFpsText = "${smoothedFps!!.roundToInt()}fps"
+                }
+            }
+            lastFrameCount = count
+            lastFrameCountAt = now
+        }
+        return measuredFpsText
+    }
+
+    // nes2: keep the last stream HDR detected from logcat. The
+    // CCodecConfig transfer lines appear once at decoder start and roll
+    // out of the logcat window during long playback; without a latch the
+    // field falls back to the post-conversion output status (HLG shows
+    // as HDR10). Cleared when the video changes or the decoder restarts.
+    private fun updateStreamHdrLatch(key: String, detected: String, videoActive: Boolean): String {
+        if (!videoActive) {
+            latchedStreamHdr = ""
+            latchedStreamHdrKey = ""
+            return ""
+        }
+        if (key != latchedStreamHdrKey) {
+            latchedStreamHdrKey = key
+            latchedStreamHdr = ""
+        }
+        if (detected.isNotEmpty()) latchedStreamHdr = detected
+        return latchedStreamHdr
+    }
+
+    // NES bug-tracker fallback: sys.nes.info.bit_rate looks like " 17336 kbps".
+    private fun formatNesBitrate(raw: String): String {
+        val kbps = Regex("""(\d+(?:\.\d+)?)""").find(raw)?.groupValues?.get(1)?.toDoubleOrNull() ?: return ""
+        if (kbps <= 0) return ""
+        return String.format(Locale.US, "%.2f Mbps", kbps / 1000.0)
+    }
+
+    // Same mapping the Display section uses for HDR Output.
+    private fun formatNesHdrStatus(raw: String): String {
+        return when (raw.trim()) {
+            "HDR10-GAMMA_ST2084" -> "HDR10"
+            "HDR10-GAMMA_HLG" -> "HLG"
+            "HDR10Plus-VSIF" -> "HDR10+"
+            "DolbyVision-Lowlatency" -> "Dolby Vision (Low Latency)"
+            "DolbyVision-Std" -> "Dolby Vision (Standard)"
+            "SDR", "HDR10", "HLG", "HDR10+", "Dolby Vision",
+            "Dolby Vision (Low Latency)", "Dolby Vision (Standard)" -> raw.trim()
+            else -> ""
+        }
+    }
+
     private fun getSystemProperty(propertyName: String): String {
         return try {
             val process = Runtime.getRuntime().exec("getprop $propertyName")
@@ -1313,7 +1420,7 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
 
                 val logs = playerPid?.let { pid ->
                     // Collect only media tags, never account/URL/authorization logs.
-                    readAdbCommand(activeConnection, "logcat -d -v threadtime --pid=$pid -t 4000 -s CCodec:D CCodecConfig:D EventLogger:D PlayerEventListener:I")
+                    readAdbCommand(activeConnection, "logcat -d -v threadtime --pid=$pid -t 20000 -s CCodec:D CCodecConfig:D EventLogger:D PlayerEventListener:I")
                 }.orEmpty()
 
                 val parsed = PortableMediaInfoParser.parse(resources, audio, logs)
