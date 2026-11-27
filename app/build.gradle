@@ -12,7 +12,7 @@ android {
         minSdk 30
         targetSdk 34
         versionCode 213
-        versionName '21.2.1-nes6'
+        versionName '21.2.1-nes7'
         resConfigs 'bg', 'en', 'de', 'hu', 'ru', 'uk'
         setProperty('archivesBaseName', 'Android_VideoInfoOverlay_' + versionName)
     }

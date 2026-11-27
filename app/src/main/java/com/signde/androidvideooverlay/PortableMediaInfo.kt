@@ -238,16 +238,20 @@ object PortableMediaInfoParser {
     }
 
     private fun detectHdrFromLogcat(log: String, decoder: String, videoTrack: String): String {
-        // nes6: the transfer is logged in three CCodecConfig fields.
+        // nes7: the transfer is logged in three CCodecConfig fields.
         // coded (bitstream VUI) is often 0 for VP9/HEVC while raw
         // (input value, also in "c2 config diff is" lines) and default
         // carry the real value (VP9 HDR: coded=0, raw=6, default=6;
         // HEVC HLG: coded=7, raw=7; AV1 SDR: coded=3, raw=3). The
         // "int32_t color-transfer" CCodec line is NOT read: it says 3
-        // even for HDR content. Scan after the last allocate first
-        // (fresh per-instance values, last non-zero wins); if the
-        // current instance logged nothing definitive, fall back to the
-        // last non-zero in the whole window. "0" is unspecified.
+        // even for HDR content. Scan only after the last allocate
+        // (fresh per-instance values, last non-zero wins). No
+        // whole-window fallback: it returned a stale value from a
+        // previous video (e.g. SDR) while the new instance had not
+        // logged yet, and the latch then flipped SDR<->HDR on every
+        // decoder recreation. If the current instance logged nothing
+        // yet, return "" and let the caller fall back to the NES HDR
+        // status, which is stable. "0" is unspecified.
         val lines = log.lines()
         val transferRegex =
             Regex("""\b(coded\.vui\.color\.transfer|raw\.color\.transfer|default\.color\.transfer)\s*=\s*(\d+)\b""")
@@ -263,7 +267,7 @@ object PortableMediaInfoParser {
             return transfer
         }
         val start = lines.indexOfLast { "allocate($decoder)" in it }
-        val transfer = if (start >= 0) scan(lines.drop(start + 1)) ?: scan(lines) else scan(lines)
+        val transfer = if (start >= 0) scan(lines.drop(start + 1)) else null
         when (transfer) {
             "6" -> return "HDR10"
             "7" -> return "HLG"

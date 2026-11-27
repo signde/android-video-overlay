@@ -470,7 +470,12 @@ class MainActivity : AccessibilityService(), SharedPreferences.OnSharedPreferenc
                     .ifEmpty { getActiveAppNameFallback() }
                 val frameRate = measureFrameRate("$videoFormat|$videoResolution|$appName")
                     .ifEmpty { getSystemProperty("sys.nes.info.frame_rate").ifEmpty { detectedMediaInfo.frameRate } }
-                val streamHdr = updateStreamHdrLatch("$videoFormat|$videoResolution|$appName", detectedMediaInfo.videoHdr, videoFormat.isNotEmpty())
+                // nes7: a latched SDR while the box is outputting HDR is a stale
+                // detection from a previous video; the box never upconverts
+                // SDR to HDR, so trust the output class and show it instead.
+                val streamHdr = updateStreamHdrLatch("$videoFormat|$videoResolution|$appName", detectedMediaInfo.videoHdr, videoFormat.isNotEmpty()).let { latched ->
+                    if (latched == "SDR" && nesStreamHdr.isNotEmpty() && nesStreamHdr != "SDR") nesStreamHdr else latched
+                }
                 val cpuCurrPerc = printCpuCurrPerc()
                 val cpuCurrMaxPerc = printCpuCurrMaxPerc()
                 val cpuCurr = printCpuCurr()
